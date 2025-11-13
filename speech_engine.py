@@ -1,6 +1,5 @@
 """
 Enhanced Speech Recognition & TTS Engine
-Offline Vosk + Coqui TTS + GPT4All (mistral-7b-openorca.Q4_0.gguf)
 """
 
 import json
@@ -12,10 +11,10 @@ import vosk
 import torch
 from PyQt5.QtCore import QObject, pyqtSignal
 
-
 class SpeechEngine(QObject):
     speech_recognized = pyqtSignal(str)
     tts_started = pyqtSignal(str)
+    tts_finished = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -23,68 +22,56 @@ class SpeechEngine(QObject):
         self.recognizer = None
         self.tts_engine = None
         self.gpt4all_model = None
-
-        self._init_recognition()
-        self._init_tts()
-        self._init_gpt4all()
-
         self._thread = None
+        self.recognition_active = False
 
-    # ---------------------------------------------------
-    # Initialization
-    # ---------------------------------------------------
-    def _init_recognition(self):
+    def init_recognition(self):
         try:
             vosk.SetLogLevel(-1)
             model_path = "models/vosk-model-en-us-0.22"
             if not os.path.exists(model_path):
-                print(f"[ERROR] Missing Vosk model at {model_path}")
-                return
+                raise FileNotFoundError(f"Vosk model not found at {model_path}")
             model = vosk.Model(model_path)
             self.recognizer = vosk.KaldiRecognizer(model, 16000)
-            print("[JARVIS] Speech recognition ready (vosk-model-en-us-0.22)")
+            print("[JARVIS] Speech recognition ready.")
         except Exception as e:
             print(f"[ERROR] Vosk init failed: {e}")
 
-    def _init_tts(self):
+    def init_tts(self):
         try:
             from TTS.api import TTS
             device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"[JARVIS] TTS using device: {device}")
             self.tts_engine = TTS("tts_models/en/ljspeech/glow-tts", gpu=(device == "cuda"))
-            print("[JARVIS] Coqui TTS initialized successfully")
+            print("[JARVIS] Coqui TTS initialized.")
         except Exception as e:
-            print(f"[WARNING] Coqui TTS init failed: {e}")
-            print("[INFO] Falling back to pyttsx3…")
+            print(f"[WARNING] Coqui TTS failed: {e}. Falling back to pyttsx3.")
             try:
                 import pyttsx3
-                engine = pyttsx3.init()
-                engine.setProperty("rate", 150)
-                engine.setProperty("volume", 0.9)
-                self.tts_engine = engine
-                print("[JARVIS] pyttsx3 fallback initialized")
+                self.tts_engine = pyttsx3.init()
+                self.tts_engine.setProperty("rate", 150)
+                print("[JARVIS] pyttsx3 fallback enabled.")
             except Exception as e2:
                 print(f"[ERROR] pyttsx3 init failed: {e2}")
 
-    def _init_gpt4all(self):
+    def init_gpt4all(self):
         try:
             from gpt4all import GPT4All
-            model_path = os.path.join("models", "mistral-7b-openorca.Q4_0.gguf")
-            print(f"[JARVIS] Loading GPT4All model from {model_path} …")
+            # Get absolute path relative to this file's directory
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            model_path = os.path.join(base_dir, "models", "Phi-3-mini-4k-instruct-q4.gguf")
             if not os.path.exists(model_path):
-                print(f"[WARNING] GPT4All model missing at {model_path}")
+                print(f"[WARNING] GPT4All model not found at {model_path}. Using fallback responses.")
                 self.gpt4all_model = None
                 return
-            self.gpt4all_model = GPT4All(model_path)
-            print("[JARVIS] GPT4All model loaded")
+            self.gpt4all_model = GPT4All(model_path, allow_download=False)  # Prevent online fetches
+            print("[JARVIS] GPT4All AI brain loaded.")
         except Exception as e:
-            print(f"[WARNING] GPT4All init failed: {e}")
+            print(f"[WARNING] GPT4All init failed: {e}. Using fallback responses.")
             self.gpt4all_model = None
 
-    # ---------------------------------------------------
-    # Recognition loop management
-    # ---------------------------------------------------
     def start(self):
-        if self._thread and self._thread.is_alive():
+        if self.running:
             return
         self.running = True
         self._thread = threading.Thread(target=self._listen_loop, daemon=True)
@@ -93,97 +80,65 @@ class SpeechEngine(QObject):
     def stop(self):
         self.running = False
         if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=2)
-            print("[JARVIS] Speech thread stopped")
+            self._thread.join(timeout=1)
 
     def _listen_loop(self):
         if not self.recognizer:
-            print("[ERROR] Speech recognizer unavailable")
             return
-        print("[JARVIS] Speech recognition stream started")
+        print("[JARVIS] Audio stream started.")
         try:
-            with sd.RawInputStream(
-                samplerate=16000, blocksize=8000, channels=1, dtype="int16"
-            ) as stream:
+            with sd.RawInputStream(samplerate=16000, blocksize=8000, channels=1, dtype="int16") as stream:
                 while self.running:
-                    data = stream.read(4000)[0]
-                    if not self.running:
-                        break
-                    if self.recognizer.AcceptWaveform(data):
-                        result = json.loads(self.recognizer.Result())
-                        text = result.get("text", "").strip()
-                        if text:
-                            print(f"[JARVIS] Heard: {text}")
-                            self.speech_recognized.emit(text)
-        except Exception as e:
-            print(f"[ERROR] Audio stream error: {e}")
-        print("[JARVIS] Exiting recognition loop")
+                    if not self.recognition_active:
+                        stream.read(stream.read_available)
+                        threading.Event().wait(0.1)
+                        continue
 
-    # ---------------------------------------------------
-    # Recognition control
-    # ---------------------------------------------------
+                    data, overflowed = stream.read(4000)
+                    if self.recognizer.AcceptWaveform(bytes(data)):
+                        result = json.loads(self.recognizer.Result())
+                        if result.get("text"):
+                            self.speech_recognized.emit(result["text"])
+        except Exception as e:
+            print(f"[ERROR] Audio stream failed: {e}")
+
     def start_recognition(self):
-        self.running = True
-        print("[JARVIS] Recognition enabled")
+        self.recognition_active = True
+        print("[JARVIS] Listening...")
 
     def stop_recognition(self):
-        self.running = False
-        print("[JARVIS] Recognition disabled")
+        self.recognition_active = False
+        print("[JARVIS] No longer listening.")
 
-    # ---------------------------------------------------
-    # Text-to-Speech
-    # ---------------------------------------------------
     def speak(self, text: str):
         if not self.tts_engine:
-            print("[ERROR] No TTS engine")
             return
-
         self.tts_started.emit(text)
+        threading.Thread(target=self._tts_task, args=(text,), daemon=True).start()
 
-        def _tts_task():
-            try:
-                if hasattr(self.tts_engine, "tts_to_file"):
-                    # Coqui
-                    path = "/tmp/jarvis_tts.wav"
-                    self.tts_engine.tts_to_file(text=text, file_path=path)
-                    import subprocess
-                    subprocess.run(
-                        ["ffplay", "-nodisp", "-autoexit", path],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                else:
-                    # pyttsx3 fallback
-                    self.tts_engine.say(text)
-                    self.tts_engine.runAndWait()
-            except Exception as e:
-                print(f"[ERROR] TTS error: {e}")
+    def _tts_task(self, text):
+        try:
+            if hasattr(self.tts_engine, "tts_to_file"):
+                import subprocess
+                path = "/tmp/jarvis_tts.wav"
+                self.tts_engine.tts_to_file(text=text, file_path=path)
+                subprocess.run(["ffplay", "-nodisp", "-autoexit", path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                self.tts_engine.say(text)
+                self.tts_engine.runAndWait()
+        except Exception as e:
+            print(f"[ERROR] TTS execution failed: {e}")
+        finally:
+            self.tts_finished.emit()
 
-        threading.Thread(target=_tts_task, daemon=True).start()
-
-    # ---------------------------------------------------
-    # Response generation
-    # ---------------------------------------------------
     def generate_response(self, prompt: str) -> str:
         if self.gpt4all_model:
             try:
-                print(f"[JARVIS] Generating response for: {prompt}")
-                response = self.gpt4all_model.generate(
-                    prompt=f"You are Jarvis, an AI assistant inspired by Iron Man's JARVIS. "
-                           f"Keep replies formal and concise.\nUser: {prompt}\nJarvis:",
-                    max_tokens=100,
-                    temp=0.7,
-                )
-                return response.strip()
+                return self.gpt4all_model.generate(
+                    prompt=f"User: {prompt}\nJarvis:",
+                    max_tokens=100, temp=0.7
+                ).strip()
             except Exception as e:
                 print(f"[ERROR] GPT4All generation failed: {e}")
-        # fallback responses
         import random
-        responses = [
-            "Acknowledged, sir.",
-            "At once, sir.",
-            "Right away, sir.",
-            "Certainly, sir.",
-            "I shall attend to that immediately, sir.",
-        ]
-        return random.choice(responses)
+        return random.choice(["Acknowledged.", "At once, sir.", "As you wish."])

@@ -43,10 +43,26 @@ class TextOverlay(QWidget):
         self.char_index = 0
         self.fade_timer = None
         self.y_offset = 0
+        self.loading_timer = QTimer()
+        self.loading_timer.timeout.connect(self.animate_loading)
+        self.loading_dots = 0
         
         # Hide by default
         self.hide()
     
+    def show_loading_animation(self):
+        """Show a loading animation until models are ready"""
+        screen_geo = self.screen().geometry()
+        self.move(50, (screen_geo.height() - 100) // 2)
+        self.show()
+        self.loading_timer.start(500) # Update every 500ms
+
+    def animate_loading(self):
+        """Animate the loading text with dots"""
+        self.loading_dots = (self.loading_dots + 1) % 4
+        dots = "." * self.loading_dots
+        self.label.setText(f"INITIALIZING MODELS{dots}")
+
     def show_typing_animation(self, text):
         """Show typing animation for text"""
         self.text = text
@@ -60,6 +76,7 @@ class TextOverlay(QWidget):
         
         # Start typing animation
         self.show()
+        self.loading_timer.stop()
         self.timer.start(40)  # ~25ms per character for smooth typing
     
     def animate_typing(self):
@@ -96,4 +113,6 @@ class TextOverlay(QWidget):
             self.timer.stop()
         if self.fade_timer and self.fade_timer.isActive():
             self.fade_timer.stop()
+        if self.loading_timer.isActive():
+            self.loading_timer.stop()
         super().close()
