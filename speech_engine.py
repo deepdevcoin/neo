@@ -188,19 +188,19 @@ class SpeechEngine(QObject):
         threading.Thread(target=self._tts_task, args=(text,), daemon=True).start()
 
     def _tts_task(self, text):
-        print(f"[SPEECH_ENGINE] _tts_task started with method: {self.tts_method}")
+        print(f"[NEO] TTS task started with method: {self.tts_method}")
         try:
             if self.tts_method == "coqui":
                 self._tts_coqui(text)
             elif self.tts_method == "pyttsx3":
                 self._tts_pyttsx3(text)
             else:
-                print("[SPEECH_ENGINE ERROR] No TTS method available")
+                print("[NEO ERROR] No TTS method available")
                 return
 
-            print("[SPEECH_ENGINE] _tts_task finished successfully.")
+            print("[NEO] TTS task finished successfully.")
         except Exception as e:
-            print(f"[SPEECH_ENGINE ERROR] TTS execution failed: {e}")
+            print(f"[NEO ERROR] TTS execution failed: {e}")
             # Try fallback if primary method fails
             if self.tts_method != "pyttsx3":
                 self._try_tts_fallback(text)
