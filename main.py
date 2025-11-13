@@ -154,7 +154,18 @@ class JarvisWindow(QMainWindow):
     def on_response_ready(self, full_response):
         print("[MAIN_WINDOW] on_response_ready signal received.")
         print(f"[JARVIS]: {full_response}")
-        self.speech_engine.speak(full_response)
+
+        # Check TTS availability before attempting to speak
+        if hasattr(self.speech_engine, 'tts_method') and self.speech_engine.tts_method == "none":
+            print("[MAIN_WINDOW] WARNING: No TTS available - displaying response instead")
+            # You could add a visual display here if needed
+            return
+
+        try:
+            self.speech_engine.speak(full_response)
+        except Exception as e:
+            print(f"[MAIN_WINDOW ERROR] Failed to speak response: {e}")
+            # Fallback: just display the response if speech fails
 
     def process_command(self, text):
         print(f"[MAIN_WINDOW] Processing command: '{text}'")
