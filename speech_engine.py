@@ -214,21 +214,111 @@ class SpeechEngine(QObject):
         threading.Thread(target=self._tts_task, args=(text,), daemon=True).start()
 
     def _tts_task(self, text):
-        print("[SPEECH_ENGINE] _tts_task started.")
+        print(f"[SPEECH_ENGINE] _tts_task started with method: {self.tts_method}")
         try:
-            if hasattr(self.tts_engine, "tts_to_file"):
-                import subprocess
-                path = "/tmp/jarvis_tts.wav"
-                self.tts_engine.tts_to_file(text=text, file_path=path)
-                subprocess.run(["ffplay", "-nodisp", "-autoexit", path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if self.tts_method == "coqui":
+                self._tts_coqui(text)
+            elif self.tts_method == "pyttsx3":
+                self._tts_pyttsx3(text)
             else:
-                self.tts_engine.say(text)
-                self.tts_engine.runAndWait()
+                print("[SPEECH_ENGINE ERROR] No TTS method available")
+                return
+
             print("[SPEECH_ENGINE] _tts_task finished successfully.")
         except Exception as e:
             print(f"[SPEECH_ENGINE ERROR] TTS execution failed: {e}")
+            # Try fallback if primary method fails
+            if self.tts_method != "pyttsx3":
+                self._try_tts_fallback(text)
         finally:
             self.tts_finished.emit()
+
+    def _tts_coqui(self, text):
+        """Handle Coqui TTS with multiple playback options."""
+        import subprocess
+        import os
+        path = "/tmp/jarvis_tts.wav"
+
+        try:
+            # Generate audio file
+            self.tts_engine.tts_to_file(text=text, file_path=path)
+            print(f"[SPEECH_ENGINE] Audio file generated: {path}")
+
+            # Try playback methods in order of preference
+            if self.ffplay_available:
+                self._play_with_ffplay(path)
+            elif self.pygame_available:
+                self._play_with_pygame(path)
+            else:
+                print("[SPEECH_ENGINE WARNING] No audio playback method available")
+                self._show_audio_file_info(path)
+
+        except Exception as e:
+            print(f"[SPEECH_ENGINE ERROR] Coqui TTS failed: {e}")
+            raise
+
+    def _tts_pyttsx3(self, text):
+        """Handle pyttsx3 TTS."""
+        print("[SPEECH_ENGINE] Using pyttsx3 for speech")
+        self.tts_engine.say(text)
+        self.tts_engine.runAndWait()
+
+    def _play_with_ffplay(self, audio_path):
+        """Play audio using ffplay."""
+        import subprocess
+        try:
+            subprocess.run([
+                "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", audio_path
+            ], check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("[SPEECH_ENGINE] Audio played with ffplay")
+        except subprocess.TimeoutExpired:
+            print("[SPEECH_ENGINE WARNING] ffplay playback timed out")
+        except FileNotFoundError:
+            print("[SPEECH_ENGINE ERROR] ffplay not found during playback")
+        except Exception as e:
+            print(f"[SPEECH_ENGINE ERROR] ffplay playback failed: {e}")
+            raise
+
+    def _play_with_pygame(self, audio_path):
+        """Play audio using pygame."""
+        try:
+            import pygame
+            pygame.mixer.init()
+            pygame.mixer.music.load(audio_path)
+            pygame.mixer.music.play()
+            print("[SPEECH_ENGINE] Audio playing with pygame")
+
+            # Wait for playback to finish
+            while pygame.mixer.music.get_busy():
+                import time
+                time.sleep(0.1)
+
+        except Exception as e:
+            print(f"[SPEECH_ENGINE ERROR] pygame playback failed: {e}")
+            raise
+
+    def _show_audio_file_info(self, audio_path):
+        """Show information about the generated audio file when playback fails."""
+        import os
+        if os.path.exists(audio_path):
+            size = os.path.getsize(audio_path)
+            print(f"[SPEECH_ENGINE] Audio file created but cannot be played: {audio_path} ({size} bytes)")
+            print("[SPEECH_ENGINE] Install ffmpeg for audio playback: sudo apt install ffmpeg")
+
+    def _try_tts_fallback(self, text):
+        """Try fallback TTS method if primary fails."""
+        print("[SPEECH_ENGINE] Trying TTS fallback method...")
+        try:
+            if self.tts_method != "pyttsx3":
+                # Try to initialize pyttsx3 as fallback
+                import pyttsx3
+                fallback_engine = pyttsx3.init()
+                fallback_engine.setProperty("rate", 150)
+                fallback_engine.say(text)
+                fallback_engine.runAndWait()
+                print("[SPEECH_ENGINE] Fallback TTS successful")
+        except Exception as e:
+            print(f"[SPEECH_ENGINE ERROR] Fallback TTS also failed: {e}")
 
     def generate_response(self, prompt: str) -> str:
         print(f"[SPEECH_ENGINE] generate_response called with prompt: '{prompt}'")
