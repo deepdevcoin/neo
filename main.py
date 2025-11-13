@@ -22,7 +22,7 @@ class GenerationWorker(QRunnable):
         self.speech_engine = speech_engine
         self.text = text
         self.signals = signals
-        self.timeout = 45  # 45 second timeout for entire generation
+        self.timeout = 25  # 25 second timeout for low memory systems
 
     def run(self):
         print("[WORKER] GenerationWorker started.")
