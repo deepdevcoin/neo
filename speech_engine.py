@@ -384,34 +384,9 @@ class SpeechEngine(QObject):
                     print(f"[MEMORY-SAFE ERROR] GPT4All generation failed: {generation_error}")
                     print("[MEMORY-SAFE] Switching to lightweight mode to prevent crashes")
 
-                # Handle non-streaming response (much lower memory usage)
-                full_response = response_generator  # For non-streaming, this is already the full response
-                token_count = len(full_response.split()) if full_response else 0
-                print(f"[MEMORY-EFFICIENT] Generated {token_count} tokens using non-streaming mode")
-
-                # Simulate streaming for UI compatibility
-                if full_response:
-                    for char in full_response:
-                        self.response_chunk_ready.emit(char)
-                        time.sleep(0.01)  # Very fast simulation
-
-                if token_count == 0:
-                    print("[SPEECH_ENGINE WARNING] Generation finished but received 0 tokens.")
-                else:
-                    total_generation_time = time.time() - generation_start_time
-                    print(f"[PERF] Generation finished. Total tokens: {token_count}, Total time: {total_generation_time:.2f} seconds.")
-                    if total_generation_time < 15:
-                        print(f"[SPEED] Good performance: {total_generation_time:.1f}s for {token_count} tokens")
-                    else:
-                        print(f"[SPEED] Generation took {total_generation_time:.2f} seconds - consider closing other applications")
-
-                # Ensure we have a response
-                if not full_response.strip():
-                    print("[SPEECH_ENGINE WARNING] Empty response, using fallback")
-                    return self._get_fallback_response()
-
-                print(f"[SPEECH_ENGINE] Full response after streaming: '{full_response.strip()}'")
-                return full_response.strip()
+                # If GPT4All failed or was too slow, use contextual responses
+                print("[FALLBACK] Using lightweight contextual responses")
+                return self._get_contextual_response(prompt)
             except Exception as e:
                 print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed: {e}")
                 print(f"[SPEECH_ENGINE INFO] Trying with minimal parameters...")
