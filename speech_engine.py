@@ -23,14 +23,15 @@ class SpeechEngine(QObject):
 
     def __init__(self):
         super().__init__()
-        print("[SPEECH_ENGINE] Initializing...")
+        print("[NEO] Initializing Neo AI Assistant...")
         self.running = False
         self.recognizer = None
         self.tts_engine = None
         self.gpt4all_model = None
         self._thread = None
         self.recognition_active = False
-        print("[SPEECH_ENGINE] Initialization complete.")
+        self._model_lock = threading.Lock()  # Thread safety for model access
+        print("[NEO] Initialization complete.")
 
     def init_recognition(self):
         print("[SPEECH_ENGINE] init_recognition started.")
