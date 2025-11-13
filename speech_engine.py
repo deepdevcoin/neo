@@ -331,15 +331,12 @@ class SpeechEngine(QObject):
                 full_response = ""
                 print("[SPEECH_ENGINE] Calling gpt4all_model.generate with optimized parameters...")
 
-                # Optimized generation parameters for speed (using only valid GPT4All parameters)
+                # Use minimal parameters that should work with all GPT4All versions
                 response_generator = self.gpt4all_model.generate(
                     prompt=f"User: {prompt}\nJarvis:",
-                    max_tokens=50,  # Further reduced for low memory systems
+                    max_tokens=40,  # Short responses for speed and low memory
                     temp=0.7,
-                    streaming=True,
-                    top_k=30,    # More focused sampling for speed
-                    top_p=0.8,   # Nucleus sampling
-                    repeat_penalty=1.2  # Reduce repetition more aggressively
+                    streaming=True
                 )
 
                 token_count = 0
