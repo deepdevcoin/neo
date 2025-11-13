@@ -49,8 +49,10 @@ class InitializationWorker(QObject):
         self.threadpool = QThreadPool()
         self.steps_to_finish = 0
     def run(self):
+        # Add dependency validation step first
         self.steps = [
             ("Initializing Neural Core…", None),
+            ("Validating System Dependencies…", self._validate_dependencies),
             ("Loading Speech Recognition (Vosk)…", self.speech_engine.init_recognition),
             ("Loading Text-to-Speech Engine (Coqui)…", self.speech_engine.init_tts),
             ("Loading AI Brain (GPT4All)…", self.speech_engine.init_gpt4all),
@@ -61,6 +63,65 @@ class InitializationWorker(QObject):
         for step_text, init_func in self.steps:
             step_runnable = InitStep(step_text, init_func, self.signals)
             self.threadpool.start(step_runnable)
+
+    def _validate_dependencies(self):
+        """Validate system dependencies and show warnings if missing."""
+        print("[DEPENDENCY] Starting dependency validation...")
+
+        # Check for ffplay
+        try:
+            import subprocess
+            result = subprocess.run(['ffplay', '-version'], capture_output=True, text=True, timeout=3)
+            if result.returncode == 0:
+                print("[DEPENDENCY] ✓ ffplay found - audio playback available")
+            else:
+                print("[DEPENDENCY WARNING] ffplay not found - audio playback may not work")
+                print("[DEPENDENCY] Install with: sudo apt install ffmpeg")
+        except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+            print("[DEPENDENCY WARNING] ffplay not found - audio playback may not work")
+            print("[DEPENDENCY] Install with: sudo apt install ffmpeg")
+
+        # Check for pygame (fallback audio)
+        try:
+            import pygame
+            print("[DEPENDENCY] ✓ pygame found - fallback audio available")
+        except ImportError:
+            print("[DEPENDENCY WARNING] pygame not found - no fallback audio available")
+            print("[DEPENDENCY] Install with: pip install pygame")
+
+        # Check audio devices
+        try:
+            import sounddevice as sd
+            devices = sd.query_devices()
+            output_devices = [d for d in devices if d['max_output_channels'] > 0]
+            if output_devices:
+                print(f"[DEPENDENCY] ✓ Found {len(output_devices)} audio output device(s)")
+            else:
+                print("[DEPENDENCY WARNING] No audio output devices found")
+        except Exception as e:
+            print(f"[DEPENDENCY WARNING] Could not check audio devices: {e}")
+
+        # Check model directory and file
+        import os
+        import pathlib
+        model_dir = pathlib.Path.home() / ".local" / "share" / "jarvis" / "models"
+        local_model_path = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
+
+        if local_model_path.exists():
+            model_size = local_model_path.stat().st_size / (1024**3)  # GB
+            print(f"[DEPENDENCY] ✓ Local model found ({model_size:.2f}GB)")
+        else:
+            print("[DEPENDENCY INFO] Local model not found - will try external drive")
+
+        # Check system resources
+        import psutil
+        memory = psutil.virtual_memory()
+        if memory.available > 4 * 1024**3:  # 4GB
+            print(f"[DEPENDENCY] ✓ Sufficient memory available ({memory.available/(1024**3):.1f}GB)")
+        else:
+            print(f"[DEPENDENCY WARNING] Low memory ({memory.available/(1024**3):.1f}GB) - AI may be slow")
+
+        print("[DEPENDENCY] Dependency validation completed")
     def on_step_finished(self, step_text):
         self.steps_to_finish -= 1
         if self.steps_to_finish == 0:
