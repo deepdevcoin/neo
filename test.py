@@ -1,30 +1,43 @@
-from gpt4all import GPT4All
-import pathlib
-import time
-import sys
+import requests
+import json
 
-model_dir = pathlib.Path.home() / ".local" / "share" / "neo" / "models"
-model = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
-model_path = str(model)
+def ask(prompt):
+    payload = {
+        "model": "gemma:2b",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "stream": True
+    }
 
-llm = GPT4All(model_path)
-response = llm.generate("Hello")
+    response = requests.post(
+        "http://localhost:11434/api/chat",
+        json=payload,
+        stream=True
+    )
 
-# Typing effect for initial response
-for char in response:
-    print(char, end='', flush=True)
-    time.sleep(0.03)  # Adjust typing speed here
-print()  # Newline after finishing
+    final_text = ""
 
-base_prompt = """
-You are an intelligent assistant that answers clearly and concisely.
+    for line in response.iter_lines():
+        if not line:
+            continue
 
-User: {input}
-Assistant:"""
+        data = json.loads(line.decode("utf-8"))
+
+        # Stream token to terminal
+        if "message" in data and "content" in data["message"]:
+            token = data["message"]["content"]
+            print(token, end="", flush=True)   # LIVE STREAM
+            final_text += token
+
+        # Stop when done
+        if data.get("done"):
+            print()  # newline after streaming
+            break
+
+    return final_text
+
 
 while True:
     request = input("Enter prompt: ")
-    prompt = base_prompt.format(input=request)
-    response = llm.generate(prompt, max_tokens=150, temp=0.3)
-    clean_response = response.replace("<|end|>", "").replace("<|assistant|>", "").strip()
-    print(clean_response)
+    ask(request)

@@ -53,7 +53,6 @@ class InitializationWorker(QObject):
             ("Initializing Neural Core…", None),
             ("Loading Speech Recognition (Vosk)…", self.speech_engine.init_recognition),
             ("Loading Text-to-Speech Engine (Coqui)…", self.speech_engine.init_tts),
-            ("Loading AI Brain (GPT4All)…", self.speech_engine.init_gpt4all),
             ("Finalizing…", None),
         ]
         self.steps_to_finish = len(self.steps)

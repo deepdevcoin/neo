@@ -11,6 +11,7 @@ import sounddevice as sd
 import vosk
 import torch
 from PyQt5.QtCore import QObject, pyqtSignal
+import requests
 
 class SpeechEngine(QObject):
     speech_recognized = pyqtSignal(str)
@@ -25,7 +26,6 @@ class SpeechEngine(QObject):
         self.running = False
         self.recognizer = None
         self.tts_engine = None
-        self.gpt4all_model = None
         self._thread = None
         self.recognition_active = False
         print("[SPEECH_ENGINE] Initialization complete.")
@@ -61,23 +61,6 @@ class SpeechEngine(QObject):
                 print("[JARVIS] pyttsx3 fallback enabled.")
             except Exception as e2:
                 print(f"[SPEECH_ENGINE ERROR] pyttsx3 init failed: {e2}")
-
-    def init_gpt4all(self):
-        print("[SPEECH_ENGINE] init_gpt4all started.")
-        try:
-            from gpt4all import GPT4All
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            model_path = os.path.join(base_dir, "models", "Phi-3-mini-4k-instruct-q4.gguf")
-            print(f"[SPEECH_ENGINE] Attempting to load GPT4All model from: {model_path}")
-            if not os.path.exists(model_path):
-                print(f"[SPEECH_ENGINE WARNING] GPT4All model not found at {model_path}. Using fallback responses.")
-                self.gpt4all_model = None
-                return
-            self.gpt4all_model = GPT4All(model_path, allow_download=False)
-            print("[SPEECH_ENGINE] GPT4All AI brain loaded successfully.")
-        except Exception as e:
-            print(f"[SPEECH_ENGINE WARNING] GPT4All init failed: {e}. Using fallback responses.")
-            self.gpt4all_model = None
 
     def start(self):
         if self.running:
@@ -144,57 +127,51 @@ class SpeechEngine(QObject):
         finally:
             self.tts_finished.emit()
 
+    def ask_ollama(self, prompt):
+        payload = {
+            "model": "gemma:2b",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "stream": True
+        }
+
+        response = requests.post(
+            "http://localhost:11434/api/chat",
+            json=payload,
+            stream=True
+        )
+
+        final_text = ""
+
+        for line in response.iter_lines():
+            if not line:
+                continue
+
+            data = json.loads(line.decode("utf-8"))
+
+            if "message" in data and "content" in data["message"]:
+                token = data["message"]["content"]
+                self.response_chunk_ready.emit(token)
+                final_text += token
+
+            if data.get("done"):
+                break
+
+        return final_text
+
     def generate_response(self, prompt: str) -> str:
         print(f"[SPEECH_ENGINE] generate_response called with prompt: '{prompt}'")
         self.generation_started.emit()
-        generation_start_time = time.time()
-
-        if self.gpt4all_model:
-            print("[SPEECH_ENGINE] GPT4All model found, proceeding with generation.")
-            try:
-                full_response = ""
-                print("[SPEECH_ENGINE] Calling gpt4all_model.generate with streaming...")
-                response_generator = self.gpt4all_model.generate(
-                    prompt=f"User: {prompt}\nJarvis:",
-                    max_tokens=150, temp=0.7, streaming=True
-                )
-                
-                token_count = 0
-                last_token_time = time.time()
-                first_token_time = None
-
-                for token in response_generator:
-                    if first_token_time is None:
-                        first_token_time = time.time()
-                        print(f"[PERF] Time to first token: {first_token_time - generation_start_time:.2f} seconds.")
-
-                    current_time = time.time()
-                    time_since_last_token = current_time - last_token_time
-                    print(f"[PERF] Time since last token: {time_since_last_token:.2f} seconds.")
-                    last_token_time = current_time
-
-                    token_count += 1
-                    full_response += token
-                    self.response_chunk_ready.emit(token)
-                
-                if token_count == 0:
-                    print("[SPEECH_ENGINE WARNING] Streaming finished but received 0 tokens.")
-                else:
-                    total_generation_time = time.time() - generation_start_time
-                    print(f"[PERF] Streaming finished. Total tokens: {token_count}, Total time: {total_generation_time:.2f} seconds.")
-
-                print(f"[SPEECH_ENGINE] Full response after streaming: '{full_response.strip()}'")
-                return full_response.strip()
-            except Exception as e:
-                print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed: {e}")
-        else:
-            print("[SPEECH_ENGINE] No GPT4All model. Using fallback response.")
-        
-        # Fallback response with simulated streaming
-        import random
-        fallback_response = random.choice(["Acknowledged.", "At once, sir.", "As you wish."])
-        print(f"[SPEECH_ENGINE] Fallback response: '{fallback_response}'")
-        for char in fallback_response:
-            self.response_chunk_ready.emit(char)
-            time.sleep(0.05)
-        return fallback_response
+        try:
+            return self.ask_ollama(prompt)
+        except Exception as e:
+            print(f"[SPEECH_ENGINE ERROR] Ollama generation failed: {e}")
+            # Fallback response with simulated streaming
+            import random
+            fallback_response = random.choice(["Acknowledged.", "At once, sir.", "As you wish."])
+            print(f"[SPEECH_ENGINE] Fallback response: '{fallback_response}'")
+            for char in fallback_response:
+                self.response_chunk_ready.emit(char)
+                time.sleep(0.05)
+            return fallback_response
