@@ -22,14 +22,45 @@ class GenerationWorker(QRunnable):
         self.speech_engine = speech_engine
         self.text = text
         self.signals = signals
+        self.timeout = 45  # 45 second timeout for entire generation
 
     def run(self):
         print("[WORKER] GenerationWorker started.")
-        # This now returns the full response at the end of streaming
-        full_response = self.speech_engine.generate_response(self.text)
-        print(f"[WORKER] Full response received: '{full_response[:30]}...'")
-        self.signals.response_ready.emit(full_response)
+        import threading
+        import time
+
+        # Create a timeout mechanism
+        result_container = {'response': None, 'done': False}
+        generation_thread = threading.Thread(target=self._generate_with_timeout, args=(result_container,))
+        generation_thread.daemon = True
+        generation_thread.start()
+
+        # Wait for completion or timeout
+        start_time = time.time()
+        while not result_container['done'] and (time.time() - start_time) < self.timeout:
+            time.sleep(0.1)
+
+        if not result_container['done']:
+            print(f"[WORKER] Generation timeout after {self.timeout} seconds")
+            fallback_response = "I'm sorry, but I'm taking too long to respond. Please try again."
+            self.signals.response_ready.emit(fallback_response)
+        else:
+            full_response = result_container['response']
+            print(f"[WORKER] Full response received: '{full_response[:30]}...'")
+            self.signals.response_ready.emit(full_response)
+
         print("[WORKER] GenerationWorker finished.")
+
+    def _generate_with_timeout(self, container):
+        """Run generation in a separate thread for timeout control."""
+        try:
+            response = self.speech_engine.generate_response(self.text)
+            container['response'] = response
+        except Exception as e:
+            print(f"[WORKER ERROR] Generation failed: {e}")
+            container['response'] = "I encountered an error while processing your request."
+        finally:
+            container['done'] = True
 
 class JarvisWindow(QMainWindow):
     def __init__(self, speech_engine: SpeechEngine):
