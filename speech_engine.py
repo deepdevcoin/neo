@@ -342,15 +342,15 @@ class SpeechEngine(QObject):
                 token_count = 0
                 last_token_time = time.time()
                 first_token_time = None
-                timeout_seconds = 30  # Add generation timeout
+                timeout_seconds = 20  # Reduced timeout for low memory systems
                 last_activity_time = time.time()
 
                 for token in response_generator:
                     current_time = time.time()
 
-                    # Check for timeout (no activity for 10 seconds)
-                    if current_time - last_activity_time > 10:
-                        print(f"[SPEECH_ENGINE WARNING] Generation timeout - no token for 10 seconds")
+                    # Check for timeout (no activity for 5 seconds - reduced for low memory)
+                    if current_time - last_activity_time > 5:
+                        print(f"[SPEECH_ENGINE WARNING] Generation timeout - no token for 5 seconds (low memory mode)")
                         break
 
                     # Check for overall timeout
