@@ -195,48 +195,100 @@ class SpeechEngine(QObject):
             print("[SPEECH_ENGINE] GPT4All model found, proceeding with generation.")
             try:
                 full_response = ""
-                print("[SPEECH_ENGINE] Calling gpt4all_model.generate with streaming...")
+                print("[SPEECH_ENGINE] Calling gpt4all_model.generate with optimized parameters...")
+
+                # Optimized generation parameters for speed
                 response_generator = self.gpt4all_model.generate(
                     prompt=f"User: {prompt}\nJarvis:",
-                    max_tokens=150, temp=0.7, streaming=True
+                    max_tokens=80,  # Reduced from 150 for faster generation
+                    temp=0.7,
+                    streaming=True,
+                    n_batch=8,  # Better batching
+                    n_ctx=1024,  # Optimized context window
+                    top_k=40,    # More focused sampling
+                    top_p=0.9,   # Nucleus sampling
+                    repeat_penalty=1.1  # Reduce repetition
                 )
-                
+
                 token_count = 0
                 last_token_time = time.time()
                 first_token_time = None
+                timeout_seconds = 30  # Add generation timeout
+                last_activity_time = time.time()
 
                 for token in response_generator:
+                    current_time = time.time()
+
+                    # Check for timeout (no activity for 10 seconds)
+                    if current_time - last_activity_time > 10:
+                        print(f"[SPEECH_ENGINE WARNING] Generation timeout - no token for 10 seconds")
+                        break
+
+                    # Check for overall timeout
+                    if current_time - generation_start_time > timeout_seconds:
+                        print(f"[SPEECH_ENGINE WARNING] Generation timeout - {timeout_seconds} seconds exceeded")
+                        break
+
                     if first_token_time is None:
-                        first_token_time = time.time()
+                        first_token_time = current_time
                         print(f"[PERF] Time to first token: {first_token_time - generation_start_time:.2f} seconds.")
 
-                    current_time = time.time()
                     time_since_last_token = current_time - last_token_time
-                    print(f"[PERF] Time since last token: {time_since_last_token:.2f} seconds.")
+                    # Only log slow tokens to reduce noise
+                    if time_since_last_token > 5.0:
+                        print(f"[PERF] Slow token: {time_since_last_token:.2f} seconds.")
+
                     last_token_time = current_time
+                    last_activity_time = current_time
 
                     token_count += 1
                     full_response += token
                     self.response_chunk_ready.emit(token)
-                
+
+                    # Early stopping if we have a complete response
+                    if token_count > 20 and any(end_punct in full_response for end_punct in ['.', '!', '?']):
+                        print(f"[SPEECH_ENGINE] Early stopping: complete response detected")
+                        break
+
                 if token_count == 0:
                     print("[SPEECH_ENGINE WARNING] Streaming finished but received 0 tokens.")
                 else:
                     total_generation_time = time.time() - generation_start_time
                     print(f"[PERF] Streaming finished. Total tokens: {token_count}, Total time: {total_generation_time:.2f} seconds.")
+                    if total_generation_time > 30:
+                        print(f"[SPEECH_ENGINE WARNING] Generation took {total_generation_time:.2f} seconds - this is too slow")
+
+                # Ensure we have a response
+                if not full_response.strip():
+                    print("[SPEECH_ENGINE WARNING] Empty response, using fallback")
+                    return self._get_fallback_response()
 
                 print(f"[SPEECH_ENGINE] Full response after streaming: '{full_response.strip()}'")
                 return full_response.strip()
             except Exception as e:
                 print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed: {e}")
+                return self._get_fallback_response()
         else:
             print("[SPEECH_ENGINE] No GPT4All model. Using fallback response.")
-        
-        # Fallback response with simulated streaming
+
+        return self._get_fallback_response()
+
+    def _get_fallback_response(self) -> str:
+        """Get a fallback response with simulated streaming."""
         import random
-        fallback_response = random.choice(["Acknowledged.", "At once, sir.", "As you wish."])
+        fallback_responses = [
+            "I'm here to assist you.",
+            "How can I help you today?",
+            "I understand. What would you like me to do?",
+            "Acknowledged. I'm ready to help.",
+            "I'm processing your request."
+        ]
+        fallback_response = random.choice(fallback_responses)
         print(f"[SPEECH_ENGINE] Fallback response: '{fallback_response}'")
+
+        # Simulate streaming for fallbacks
         for char in fallback_response:
             self.response_chunk_ready.emit(char)
-            time.sleep(0.05)
+            time.sleep(0.02)  # Faster streaming for fallbacks
+
         return fallback_response
