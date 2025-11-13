@@ -374,9 +374,9 @@ class SpeechEngine(QObject):
                     full_response += token
                     self.response_chunk_ready.emit(token)
 
-                    # Early stopping if we have a complete response
-                    if token_count > 20 and any(end_punct in full_response for end_punct in ['.', '!', '?']):
-                        print(f"[SPEECH_ENGINE] Early stopping: complete response detected")
+                    # Early stopping if we have a complete response (lowered threshold for low memory)
+                    if token_count > 10 and any(end_punct in full_response for end_punct in ['.', '!', '?']):
+                        print(f"[SPEECH_ENGINE] Early stopping: complete response detected at {token_count} tokens")
                         break
 
                 if token_count == 0:
