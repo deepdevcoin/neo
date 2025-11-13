@@ -1,244 +1,199 @@
-# 🌌 Jarvis Neural Core
+# Jarvis Neural Core - Enhanced Desktop Application
 
-A desktop holographic neural orb with voice interaction, inspired by Tony Stark's Jarvis AI core. Features a 3D animated particle brain that reacts to voice input in real-time.
+A sophisticated, always-on-top desktop overlay featuring a smooth-animated 3D neural orb with real-time speech recognition, TTS responses, and intelligent action execution. Fully transparent holographic interface inspired by Tony Stark's Jarvis.
 
-![Jarvis Neural Core](https://img.shields.io/badge/status-active-success)
-![Python](https://img.shields.io/badge/python-3.8+-blue)
-![Platform](https://img.shields.io/badge/platform-linux%20%7C%20windows%20%7C%20macos-lightgrey)
+## Features
 
-## ✨ Features
+- **Transparent Holographic Orb** - Fully transparent 3D neural network with GPU-optimized rendering
+- **Smooth Animations** - All transitions use mathematical easing (lerp, quad, cubic) for natural motion
+- **Real-Time Audio Reactivity** - Orb expands and brightens based on microphone input
+- **Offline Speech Recognition** - Vosk-powered privacy-focused voice commands
+- **Text-to-Speech Responses** - pyttsx3 integration with Jarvis-like voice
+- **Typing Animation Overlay** - Green monospace (#00FF7F) text with cinematic typewriter effect (5s fade)
+- **Action Mode** - Orb moves right, shrinks, executes commands, returns to center
+- **Hotkey Activation** - Global Ctrl+Space for hands-free control
+- **Optimized Performance** - 150 particles, 60 FPS, minimal CPU usage
+- **Cross-Platform** - Linux, Windows, macOS support
 
-- 🎨 **3D Neural Network Visualization**: 400+ particles connected by glowing neural links
-- 🎤 **Real-time Audio Reactivity**: Orb pulses and glows based on microphone input
-- 🗣️ **Offline Speech Recognition**: Uses Vosk for privacy-focused voice recognition
-- 🔊 **Text-to-Speech**: Jarvis-like voice responses
-- 🪟 **Always-On-Top Overlay**: Transparent, frameless window that stays above all apps
-- ⌨️ **Hotkey Control**: Toggle listening with Ctrl+Space
-- 🌊 **Smooth Animations**: Rotating orb with ambient particle drift
-- 🎭 **Reactive Glow Effects**: Intensity scales with voice amplitude
+## Installation
 
-## 📋 Requirements
+### Prerequisites
 
-- Python 3.8 or higher
-- Working microphone
-- Audio output device
-- OpenGL-capable graphics
+- Python 3.8+
+- pip package manager
+- Microphone (for voice input)
 
-## 🚀 Installation
+### Step 1: Install System Dependencies
 
-### 1. Clone or Download
+**Ubuntu/Debian:**
+\`\`\`bash
+sudo apt-get install python3-dev python3-pip portaudio19-dev gnome-terminal
+\`\`\`
 
-```bash
-git clone <repository-url>
-cd jarvis_neural_core
-```
+**macOS:**
+\`\`\`bash
+brew install python portaudio
+\`\`\`
 
-### 2. Install Python Dependencies
+**Windows:**
+Install Python 3.10+ from https://www.python.org/
 
-```bash
-pip install PyQt5 PyOpenGL numpy sounddevice vosk pyttsx3
-```
+### Step 2: Install Python Dependencies
 
-### 3. Download Vosk Speech Model
+\`\`\`bash
+pip install PyQt5 numpy sounddevice vosk pyttsx3 vispy pynput
+\`\`\`
 
-Download a Vosk model for offline speech recognition:
+### Step 3: Download Vosk Speech Model
 
-1. Visit https://alphacephei.com/vosk/models
-2. Download `vosk-model-small-en-us-0.15` (or another English model)
-3. Extract the downloaded archive
-4. Rename the extracted folder to `model`
-5. Place it in the project root directory:
+\`\`\`bash
+# Create models directory
+mkdir -p ~/.vosk-models
 
-```
-jarvis_neural_core/
-├── model/              # <- Vosk model folder here
-│   ├── am/
-│   ├── graph/
-│   └── ...
-├── main.py
-├── orb_renderer.py
-└── ...
-```
+# Download model
+wget https://alphacephei.com/vosk/models/vosk-model-en-us-0.42-gigaspeech.zip
+unzip vosk-model-en-us-0.42-gigaspeech.zip -d ~/.vosk-models/
+mv ~/.vosk-models/vosk-model-en-us-0.42-gigaspeech ~/.vosk-models/model
+\`\`\`
 
-### 4. Platform-Specific Setup
+## Usage
 
-#### Linux
-```bash
-# Install PortAudio (required for sounddevice)
-sudo apt-get install portaudio19-dev python3-pyaudio
+### Launch the Application
 
-# Install espeak (for pyttsx3)
-sudo apt-get install espeak
-```
-
-#### macOS
-```bash
-# Install PortAudio via Homebrew
-brew install portaudio
-```
-
-#### Windows
-- No additional setup required
-- Windows includes built-in TTS voices
-
-## 🎮 Usage
-
-### Starting Jarvis
-
-```bash
+\`\`\`bash
 python main.py
-```
-
-The neural orb will appear as a floating transparent window on your desktop.
+\`\`\`
 
 ### Controls
 
-- **Ctrl+Space**: Toggle listening mode on/off
-- **Drag window**: Click and drag to reposition (if window frame is visible)
-- **Close**: Close the terminal window or press Ctrl+C
+- **Ctrl+Space** - Toggle listening mode on/off
+- **Speak Naturally** - Jarvis listens and responds
+- **Action Commands** - Say "open browser", "open terminal", "show time"
+- Close window normally to exit gracefully
 
-### Interaction
+### Operation
 
-1. Press **Ctrl+Space** to activate listening
-2. Speak your command
-3. Jarvis will transcribe and respond
-4. Press **Ctrl+Space** again to deactivate
+1. Press **Ctrl+Space** to activate listening mode
+2. Speak clearly into your microphone
+3. Jarvis recognizes speech and displays typing animation
+4. The orb reacts with color and size changes
+5. For commands (e.g., "open terminal"), orb moves right and executes action
+6. Orb returns to center after action completion
 
-### Example Commands
+## Configuration
 
-- "Hello Jarvis"
-- "What time is it?"
-- "Thank you"
-- "Goodbye"
+### Adjust Orb Colors
 
-## 📁 Project Structure
+Edit `orb_renderer.py` to modify the base color (RGB 0-1 range):
 
-```
-jarvis_neural_core/
-├── main.py                 # Main application entry point
-├── orb_renderer.py        # 3D OpenGL particle system renderer
-├── audio_listener.py      # Real-time microphone input processor
-├── speech_engine.py       # Vosk + pyttsx3 integration
-├── model/                 # Vosk speech model (download separately)
-└── README.md              # This file
-```
+\`\`\`python
+self.base_color = np.array([1.0, 0.48, 0.11])  # Orange/gold #FF7A18
+\`\`\`
 
-## 🎨 Customization
+Action mode uses cyan tint. Modify the action_mode color section for different theme.
 
-### Colors
+### Customize Text Overlay
 
-Edit `orb_renderer.py` to change colors:
+Edit `text_overlay.py`:
 
-```python
-# Inner glow (line ~141)
-r, g, b = 1.0, 0.48, 0.09  # #FF7A18
+\`\`\`python
+font = QFont("Courier New", 11, QFont.Bold)  # Change font family/size
+self.label.setStyleSheet("color: #00FF7F;")  # Change hacking green hex
+self.timer.start(40)  # Adjust typing speed (lower = faster)
+self.fade_timer.start(5000)  # Change display duration (milliseconds)
+\`\`\`
 
-# Outer filaments (line ~116)
-glColor4f(1.0, 0.7, 0.28, alpha)  # #FFB347
-```
+### Adjust Performance
 
-### Particle Count
+Edit `main.py`:
 
-Adjust in `orb_renderer.py`:
+\`\`\`python
+self.orb_renderer = OrbRenderer(self.canvas, num_particles=150)  # Adjust particle count
+self.timer.start(16)  # 60 FPS (increase value for lower FPS, less CPU)
+\`\`\`
 
-```python
-self.num_particles = 400  # Increase for denser orb
-```
+### Add Custom Action Commands
 
-### Window Size
+Edit the `execute_action()` method in `main.py` to add command handlers:
 
-Modify in `main.py`:
+\`\`\`python
+elif 'notes' in command.lower():
+    subprocess.Popen(['gedit'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+\`\`\`
 
-```python
-self.resize(400, 400)  # Width, height
-```
+## Project Structure
 
-### Response Logic
+\`\`\`
+jarvis-neural-core/
+├── main.py                  # Entry point, window management, state logic
+├── orb_renderer.py          # 3D particle network rendering with easing
+├── audio_listener.py        # Real-time microphone amplitude detection
+├── speech_engine.py         # Vosk speech recognition + pyttsx3 TTS
+├── text_overlay.py          # Typing animation overlay with fade effect
+├── animation_manager.py     # Easing functions and smooth interpolation
+├── hotkey_manager.py        # Global Ctrl+Space hotkey detection
+└── README.md                # This file
+\`\`\`
 
-Enhance `get_jarvis_response()` in `main.py` to add custom responses or integrate with AI APIs.
+## Troubleshooting
 
-## 🔧 Troubleshooting
+**"No module named 'vosk'"**
+Ensure vosk model is downloaded to `~/.vosk-models/model/`
 
-### No Audio Input Detected
+**Audio not detected**
+Check system audio input levels and microphone permissions. Test with: `python -c "import sounddevice; print(sounddevice.default_device())"`
 
-- Check microphone permissions
-- Verify microphone is set as default input device
-- Test with: `python -m sounddevice`
+**Vosk not recognizing speech**
+Try a larger model or check microphone quality. Speak clearly and closer to microphone.
 
-### Vosk Model Not Found
+**Window not staying on top**
+Some Wayland-based window managers have limitations. Try with X11 session.
 
-```
-⚠️  Vosk model not found!
-Please download a model from https://alphacephei.com/vosk/models
-```
+**High CPU usage**
+Reduce `num_particles` to 100-120 or increase timer interval to 32ms (30 FPS).
 
-- Download and extract model as described in Installation step 3
-- Ensure folder is named exactly `model` (not `vosk-model-small-en-us-0.15`)
+**Text overlay not appearing**
+Ensure text_overlay.py is in the same directory as main.py.
 
-### Window Not Transparent
+## Performance Tips
 
-- Some Linux desktop environments may not support transparent windows
-- Try different compositor settings or window managers
+- **Linux**: Ensure OpenGL drivers are installed for smooth rendering
+- **Windows**: Update GPU drivers for optimal performance
+- **macOS**: Works best on Apple Silicon or newer Intel Macs
+- Reduce particles and FPS for lower-end systems
 
-### TTS Not Working
+## System Requirements
 
-- **Linux**: Install `espeak` or `festival`
-- **macOS**: Should work out of the box
-- **Windows**: Check Windows Speech settings
+- Python 3.8+
+- 4GB RAM minimum
+- OpenGL-capable GPU (recommended)
+- Modern desktop environment (GNOME, KDE, macOS, Windows 10+)
 
-### Performance Issues
+## Future Enhancements
 
-- Reduce particle count in `orb_renderer.py`
-- Lower FPS in `main.py` (increase timer interval)
-- Close other GPU-intensive applications
-
-## 🧠 Technical Details
-
-### Audio Processing
-- Uses `sounddevice` for low-latency microphone capture
-- RMS amplitude calculation for intensity
-- Smoothing filter for stable visual response
-
-### 3D Rendering
-- Pure PyOpenGL (no game engines)
-- Particle system with dynamic connections
-- Spherical distribution for natural look
-- Smooth rotation and ambient drift
-
-### Speech Recognition
-- Vosk for fully offline recognition
-- No cloud dependencies or API keys needed
-- Privacy-focused design
-
-## 🔮 Future Enhancements
-
-- [ ] AI integration (ChatGPT, Claude API)
-- [ ] Custom wake word detection
-- [ ] Holographic ring layers
-- [ ] Data stream animations along neural links
-- [ ] Configuration file for easy customization
-- [ ] Multiple color themes
-- [ ] Gesture controls
+- [ ] Holographic ring layers around the orb
+- [ ] Customizable voice profiles
+- [ ] Voice command macros
+- [ ] Tray icon for quick access
+- [ ] Settings GUI for configuration
+- [ ] Cloud sync for commands/responses
 - [ ] Multi-language support
 
-## 📄 License
+## License
 
-This project is provided as-is for educational and personal use.
+MIT License - Feel free to modify and distribute
 
-## 🙏 Acknowledgments
+## Credits
 
-- Vosk for offline speech recognition
-- PyQt5 for cross-platform GUI
-- OpenGL for 3D graphics
-- Inspired by Marvel's Jarvis AI
-
-## 💡 Tips
-
-- Run on high-performance graphics mode for best visual quality
-- Position orb in corner of screen to keep it visible while working
-- Customize responses to match your workflow
-- Consider integrating with home automation or productivity tools
+Built with:
+- **PyQt5** - GUI framework
+- **VisPy** - 3D visualization
+- **Vosk** - Offline speech recognition
+- **pyttsx3** - Text-to-speech
+- **pynput** - Global hotkey detection
+- **NumPy** - Numerical calculations
+- **sounddevice** - Audio capture
 
 ---
 
-**Made with ❤️ for the future of human-AI interaction**
+**Enjoy your personal Jarvis AI! Press Ctrl+Space to get started.**

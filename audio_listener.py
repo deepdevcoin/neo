@@ -1,8 +1,11 @@
+"""
+Real-time Audio Listener with improved amplitude detection
+"""
+
 import numpy as np
 import sounddevice as sd
 from PyQt5.QtCore import QObject, pyqtSignal
 import queue
-import threading
 
 
 class AudioListener(QObject):
@@ -15,9 +18,9 @@ class AudioListener(QObject):
         self.is_listening = False
         self.audio_queue = queue.Queue()
         self.stream = None
-        self.running = False  # Flag to control the listening loop
     
     def start(self):
+        """Start audio capturing"""
         try:
             self.stream = sd.InputStream(
                 channels=1,
@@ -26,10 +29,7 @@ class AudioListener(QObject):
                 callback=self._audio_callback
             )
             self.stream.start()
-
-            self.running = True
-            # Run listening loop in separate thread
-            threading.Thread(target=self._listen_loop, daemon=True).start()
+            self._listen_loop()
         except Exception as e:
             print(f"Audio error: {e}")
     
@@ -41,7 +41,7 @@ class AudioListener(QObject):
     
     def _listen_loop(self):
         """Process audio and emit amplitude"""
-        while self.running:
+        while True:
             try:
                 audio_data = self.audio_queue.get(timeout=0.1)
                 if self.is_listening:
@@ -62,8 +62,7 @@ class AudioListener(QObject):
         self.is_listening = False
     
     def stop(self):
-        """Stop audio stream and listening loop"""
-        self.running = False
+        """Stop audio stream"""
         if self.stream:
             self.stream.stop()
             self.stream.close()

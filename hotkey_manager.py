@@ -23,8 +23,8 @@ class HotkeyManager(QObject):
             self.thread = threading.Thread(target=self._listen_hotkey, daemon=True)
             self.thread.start()
         except ImportError:
-            print("[JARVIS] [WARNING] pynput not installed. Hotkey support disabled.")
-            print("[JARVIS]Install with: pip install pynput")
+            print("[WARNING] pynput not installed. Hotkey support disabled.")
+            print("Install with: pip install pynput")
     
     def _listen_hotkey(self):
         """Listen for Ctrl+Space hotkey"""
