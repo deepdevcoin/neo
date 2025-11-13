@@ -5,6 +5,7 @@ Enhanced Speech Recognition & TTS Engine
 import json
 import os
 import threading
+import time
 import numpy as np
 import sounddevice as sd
 import vosk
@@ -15,17 +16,22 @@ class SpeechEngine(QObject):
     speech_recognized = pyqtSignal(str)
     tts_started = pyqtSignal(str)
     tts_finished = pyqtSignal()
+    generation_started = pyqtSignal()
+    response_chunk_ready = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
+        print("[SPEECH_ENGINE] Initializing...")
         self.running = False
         self.recognizer = None
         self.tts_engine = None
         self.gpt4all_model = None
         self._thread = None
         self.recognition_active = False
+        print("[SPEECH_ENGINE] Initialization complete.")
 
     def init_recognition(self):
+        print("[SPEECH_ENGINE] init_recognition started.")
         try:
             vosk.SetLogLevel(-1)
             model_path = "models/vosk-model-en-us-0.22"
@@ -33,41 +39,44 @@ class SpeechEngine(QObject):
                 raise FileNotFoundError(f"Vosk model not found at {model_path}")
             model = vosk.Model(model_path)
             self.recognizer = vosk.KaldiRecognizer(model, 16000)
-            print("[JARVIS] Speech recognition ready.")
+            print("[SPEECH_ENGINE] init_recognition successful.")
         except Exception as e:
-            print(f"[ERROR] Vosk init failed: {e}")
+            print(f"[SPEECH_ENGINE ERROR] Vosk init failed: {e}")
 
     def init_tts(self):
+        print("[SPEECH_ENGINE] init_tts started.")
         try:
             from TTS.api import TTS
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            device = "cpu"
             print(f"[JARVIS] TTS using device: {device}")
-            self.tts_engine = TTS("tts_models/en/ljspeech/glow-tts", gpu=(device == "cuda"))
-            print("[JARVIS] Coqui TTS initialized.")
+            self.tts_engine = TTS("tts_models/en/ljspeech/glow-tts", gpu=False)
+            self.tts_engine.to(device)
+            print("[SPEECH_ENGINE] init_tts successful.")
         except Exception as e:
-            print(f"[WARNING] Coqui TTS failed: {e}. Falling back to pyttsx3.")
+            print(f"[SPEECH_ENGINE WARNING] Coqui TTS failed: {e}. Falling back to pyttsx3.")
             try:
                 import pyttsx3
                 self.tts_engine = pyttsx3.init()
                 self.tts_engine.setProperty("rate", 150)
                 print("[JARVIS] pyttsx3 fallback enabled.")
             except Exception as e2:
-                print(f"[ERROR] pyttsx3 init failed: {e2}")
+                print(f"[SPEECH_ENGINE ERROR] pyttsx3 init failed: {e2}")
 
     def init_gpt4all(self):
+        print("[SPEECH_ENGINE] init_gpt4all started.")
         try:
             from gpt4all import GPT4All
-            # Get absolute path relative to this file's directory
             base_dir = os.path.dirname(os.path.abspath(__file__))
             model_path = os.path.join(base_dir, "models", "Phi-3-mini-4k-instruct-q4.gguf")
+            print(f"[SPEECH_ENGINE] Attempting to load GPT4All model from: {model_path}")
             if not os.path.exists(model_path):
-                print(f"[WARNING] GPT4All model not found at {model_path}. Using fallback responses.")
+                print(f"[SPEECH_ENGINE WARNING] GPT4All model not found at {model_path}. Using fallback responses.")
                 self.gpt4all_model = None
                 return
-            self.gpt4all_model = GPT4All(model_path, allow_download=False)  # Prevent online fetches
-            print("[JARVIS] GPT4All AI brain loaded.")
+            self.gpt4all_model = GPT4All(model_path, allow_download=False)
+            print("[SPEECH_ENGINE] GPT4All AI brain loaded successfully.")
         except Exception as e:
-            print(f"[WARNING] GPT4All init failed: {e}. Using fallback responses.")
+            print(f"[SPEECH_ENGINE WARNING] GPT4All init failed: {e}. Using fallback responses.")
             self.gpt4all_model = None
 
     def start(self):
@@ -111,12 +120,15 @@ class SpeechEngine(QObject):
         print("[JARVIS] No longer listening.")
 
     def speak(self, text: str):
-        if not self.tts_engine:
+        print(f"[SPEECH_ENGINE] speak called with text: '{text[:30]}...'")
+        if not self.tts_engine or not text:
+            print("[SPEECH_ENGINE] speak aborted: TTS engine not ready or text is empty.")
             return
         self.tts_started.emit(text)
         threading.Thread(target=self._tts_task, args=(text,), daemon=True).start()
 
     def _tts_task(self, text):
+        print("[SPEECH_ENGINE] _tts_task started.")
         try:
             if hasattr(self.tts_engine, "tts_to_file"):
                 import subprocess
@@ -126,19 +138,63 @@ class SpeechEngine(QObject):
             else:
                 self.tts_engine.say(text)
                 self.tts_engine.runAndWait()
+            print("[SPEECH_ENGINE] _tts_task finished successfully.")
         except Exception as e:
-            print(f"[ERROR] TTS execution failed: {e}")
+            print(f"[SPEECH_ENGINE ERROR] TTS execution failed: {e}")
         finally:
             self.tts_finished.emit()
 
     def generate_response(self, prompt: str) -> str:
+        print(f"[SPEECH_ENGINE] generate_response called with prompt: '{prompt}'")
+        self.generation_started.emit()
+        generation_start_time = time.time()
+
         if self.gpt4all_model:
+            print("[SPEECH_ENGINE] GPT4All model found, proceeding with generation.")
             try:
-                return self.gpt4all_model.generate(
+                full_response = ""
+                print("[SPEECH_ENGINE] Calling gpt4all_model.generate with streaming...")
+                response_generator = self.gpt4all_model.generate(
                     prompt=f"User: {prompt}\nJarvis:",
-                    max_tokens=100, temp=0.7
-                ).strip()
+                    max_tokens=150, temp=0.7, streaming=True
+                )
+                
+                token_count = 0
+                last_token_time = time.time()
+                first_token_time = None
+
+                for token in response_generator:
+                    if first_token_time is None:
+                        first_token_time = time.time()
+                        print(f"[PERF] Time to first token: {first_token_time - generation_start_time:.2f} seconds.")
+
+                    current_time = time.time()
+                    time_since_last_token = current_time - last_token_time
+                    print(f"[PERF] Time since last token: {time_since_last_token:.2f} seconds.")
+                    last_token_time = current_time
+
+                    token_count += 1
+                    full_response += token
+                    self.response_chunk_ready.emit(token)
+                
+                if token_count == 0:
+                    print("[SPEECH_ENGINE WARNING] Streaming finished but received 0 tokens.")
+                else:
+                    total_generation_time = time.time() - generation_start_time
+                    print(f"[PERF] Streaming finished. Total tokens: {token_count}, Total time: {total_generation_time:.2f} seconds.")
+
+                print(f"[SPEECH_ENGINE] Full response after streaming: '{full_response.strip()}'")
+                return full_response.strip()
             except Exception as e:
-                print(f"[ERROR] GPT4All generation failed: {e}")
+                print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed: {e}")
+        else:
+            print("[SPEECH_ENGINE] No GPT4All model. Using fallback response.")
+        
+        # Fallback response with simulated streaming
         import random
-        return random.choice(["Acknowledged.", "At once, sir.", "As you wish."])
+        fallback_response = random.choice(["Acknowledged.", "At once, sir.", "As you wish."])
+        print(f"[SPEECH_ENGINE] Fallback response: '{fallback_response}'")
+        for char in fallback_response:
+            self.response_chunk_ready.emit(char)
+            time.sleep(0.05)
+        return fallback_response
