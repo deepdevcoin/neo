@@ -45,22 +45,66 @@ class SpeechEngine(QObject):
 
     def init_tts(self):
         print("[SPEECH_ENGINE] init_tts started.")
+        self.tts_engine = None
+        self.tts_method = "none"  # Track which TTS method is being used
+
+        # Check for ffplay dependency
+        self.ffplay_available = self._check_ffplay()
+        if self.ffplay_available:
+            print("[SPEECH_ENGINE] ffplay found - audio playback available")
+        else:
+            print("[SPEECH_ENGINE WARNING] ffplay not found - checking for pygame fallback")
+
+        # Try pygame for audio playback fallback
+        self.pygame_available = self._check_pygame()
+        if self.pygame_available:
+            print("[SPEECH_ENGINE] pygame found - fallback audio available")
+
+        # Try Coqui TTS first (highest quality)
         try:
             from TTS.api import TTS
             device = "cpu"
             print(f"[JARVIS] TTS using device: {device}")
             self.tts_engine = TTS("tts_models/en/ljspeech/glow-tts", gpu=False)
             self.tts_engine.to(device)
-            print("[SPEECH_ENGINE] init_tts successful.")
+            self.tts_method = "coqui"
+            print("[SPEECH_ENGINE] Coqui TTS initialized successfully.")
+            return
         except Exception as e:
-            print(f"[SPEECH_ENGINE WARNING] Coqui TTS failed: {e}. Falling back to pyttsx3.")
-            try:
-                import pyttsx3
-                self.tts_engine = pyttsx3.init()
-                self.tts_engine.setProperty("rate", 150)
-                print("[JARVIS] pyttsx3 fallback enabled.")
-            except Exception as e2:
-                print(f"[SPEECH_ENGINE ERROR] pyttsx3 init failed: {e2}")
+            print(f"[SPEECH_ENGINE WARNING] Coqui TTS failed: {e}. Trying fallback...")
+
+        # Fallback to pyttsx3 (system TTS)
+        try:
+            import pyttsx3
+            self.tts_engine = pyttsx3.init()
+            self.tts_engine.setProperty("rate", 150)
+            self.tts_engine.setProperty("volume", 0.9)
+            self.tts_method = "pyttsx3"
+            print("[SPEECH_ENGINE] pyttsx3 fallback enabled.")
+            return
+        except Exception as e2:
+            print(f"[SPEECH_ENGINE ERROR] pyttsx3 init failed: {e2}")
+
+        print("[SPEECH_ENGINE ERROR] No TTS engine available - speech output will not work")
+
+    def _check_ffplay(self) -> bool:
+        """Check if ffplay is available for audio playback."""
+        try:
+            import subprocess
+            result = subprocess.run(['ffplay', '-version'],
+                                  capture_output=True, text=True, timeout=3)
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
+            return False
+
+    def _check_pygame(self) -> bool:
+        """Check if pygame is available for audio playback."""
+        try:
+            import pygame
+            pygame.mixer.init()
+            return True
+        except Exception:
+            return False
 
     def init_gpt4all(self):
         print("[SPEECH_ENGINE] init_gpt4all started.")
