@@ -362,12 +362,14 @@ class SpeechEngine(QObject):
                         time.sleep(0.01)  # Very fast simulation
 
                 if token_count == 0:
-                    print("[SPEECH_ENGINE WARNING] Streaming finished but received 0 tokens.")
+                    print("[SPEECH_ENGINE WARNING] Generation finished but received 0 tokens.")
                 else:
                     total_generation_time = time.time() - generation_start_time
-                    print(f"[PERF] Streaming finished. Total tokens: {token_count}, Total time: {total_generation_time:.2f} seconds.")
-                    if total_generation_time > 30:
-                        print(f"[SPEECH_ENGINE WARNING] Generation took {total_generation_time:.2f} seconds - this is too slow")
+                    print(f"[PERF] Generation finished. Total tokens: {token_count}, Total time: {total_generation_time:.2f} seconds.")
+                    if total_generation_time < 15:
+                        print(f"[SPEED] Good performance: {total_generation_time:.1f}s for {token_count} tokens")
+                    else:
+                        print(f"[SPEED] Generation took {total_generation_time:.2f} seconds - consider closing other applications")
 
                 # Ensure we have a response
                 if not full_response.strip():
