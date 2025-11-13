@@ -325,18 +325,26 @@ class SpeechEngine(QObject):
         self.generation_started.emit()
         generation_start_time = time.time()
 
-        # Check available memory
+        # Check available memory and decide on response strategy
+        use_lightweight_mode = False
         try:
             import psutil
             memory = psutil.virtual_memory()
             available_gb = memory.available / (1024**3)
             print(f"[MEMORY] Available: {available_gb:.1f}GB, Used: {memory.percent}%")
-            if available_gb < 2.0:
+            if available_gb < 1.5:  # Very low memory threshold
+                print(f"[MEMORY] CRITICAL: Very low memory - using lightweight responses only")
+                use_lightweight_mode = True
+            elif available_gb < 2.0:
                 print(f"[MEMORY] WARNING: Low memory condition detected - using ultra-fast mode")
         except:
-            print("[MEMORY] Could not check memory usage")
+            print("[MEMORY] Could not check memory usage - using conservative mode")
+            use_lightweight_mode = True
 
-        if self.gpt4all_model:
+        if use_lightweight_mode:
+            print("[LIGHTWEIGHT] Using rule-based responses due to memory constraints")
+            return self._get_contextual_response(prompt)
+        elif self.gpt4all_model:
             print("[SPEECH_ENGINE] GPT4All model found, proceeding with generation.")
             try:
                 full_response = ""
