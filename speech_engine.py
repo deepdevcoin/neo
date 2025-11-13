@@ -34,7 +34,7 @@ class SpeechEngine(QObject):
         print("[NEO] Initialization complete.")
 
     def init_recognition(self):
-        print("[SPEECH_ENGINE] init_recognition started.")
+        print("[NEO] init_recognition started.")
         try:
             vosk.SetLogLevel(-1)
             model_path = "models/vosk-model-en-us-0.22"
@@ -42,9 +42,9 @@ class SpeechEngine(QObject):
                 raise FileNotFoundError(f"Vosk model not found at {model_path}")
             model = vosk.Model(model_path)
             self.recognizer = vosk.KaldiRecognizer(model, 16000)
-            print("[SPEECH_ENGINE] init_recognition successful.")
+            print("[NEO] init_recognition successful.")
         except Exception as e:
-            print(f"[SPEECH_ENGINE ERROR] Vosk init failed: {e}")
+            print(f"[NEO ERROR] Vosk init failed: {e}")
 
     def init_tts(self):
         print("[SPEECH_ENGINE] init_tts started.")
