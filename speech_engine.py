@@ -350,13 +350,39 @@ class SpeechEngine(QObject):
                 full_response = ""
                 print("[SPEECH_ENGINE] Calling gpt4all_model.generate with optimized parameters...")
 
-                # Ultra-minimal parameters for extremely low memory systems
-                response_generator = self.gpt4all_model.generate(
-                    prompt=f"User: {prompt}\nJarvis:",
-                    max_tokens=15,  # Very short responses to save memory
-                    temp=0.5,      # Lower temperature for more predictable responses
-                    streaming=False  # Disable streaming to save memory
-                )
+                # Try to use GPT4All with memory-safe approach
+                print("[MEMORY-SAFE] Attempting GPT4All generation with safety measures...")
+                try:
+                    # Force garbage collection before generation
+                    import gc
+                    gc.collect()
+
+                    response = self.gpt4all_model.generate(
+                        prompt=f"User: {prompt}\nJarvis:",
+                        max_tokens=10,  # Extremely short responses
+                        temp=0.3,      # Very predictable responses
+                        streaming=False  # Non-streaming to save memory
+                    )
+
+                    # Clean up immediately after generation
+                    gc.collect()
+
+                    if response and response.strip():
+                        token_count = len(response.split())
+                        print(f"[MEMORY-SAFE] Generated {token_count} tokens successfully")
+
+                        # Simulate streaming for UI compatibility
+                        for char in response:
+                            self.response_chunk_ready.emit(char)
+                            time.sleep(0.01)
+
+                        return response.strip()
+                    else:
+                        print("[MEMORY-SAFE] Empty response from GPT4All")
+
+                except Exception as generation_error:
+                    print(f"[MEMORY-SAFE ERROR] GPT4All generation failed: {generation_error}")
+                    print("[MEMORY-SAFE] Switching to lightweight mode to prevent crashes")
 
                 # Handle non-streaming response (much lower memory usage)
                 full_response = response_generator  # For non-streaming, this is already the full response
