@@ -1,5 +1,5 @@
 """
-Enhanced Speech Recognition & TTS Engine
+Neo AI Assistant - Enhanced Speech Recognition & TTS Engine
 """
 
 import json
@@ -11,6 +11,8 @@ import sounddevice as sd
 import vosk
 import torch
 from PyQt5.QtCore import QObject, pyqtSignal
+from gpt4all import GPT4All
+import pathlib
 
 class SpeechEngine(QObject):
     speech_recognized = pyqtSignal(str)
