@@ -399,6 +399,31 @@ class SpeechEngine(QObject):
                 return full_response.strip()
             except Exception as e:
                 print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed: {e}")
+                print(f"[SPEECH_ENGINE INFO] Trying with minimal parameters...")
+                try:
+                    # Fallback to basic parameters that should always work
+                    response_generator = self.gpt4all_model.generate(
+                        prompt=f"User: {prompt}\nJarvis:",
+                        max_tokens=30,  # Very short responses for low memory
+                        temp=0.7,
+                        streaming=True
+                    )
+
+                    token_count = 0
+                    full_response = ""
+                    for token in response_generator:
+                        token_count += 1
+                        full_response += token
+                        self.response_chunk_ready.emit(token)
+                        if token_count >= 30:  # Hard limit for very low memory
+                            break
+
+                    print(f"[SPEECH_ENGINE] Minimal mode generated {token_count} tokens")
+                    if full_response.strip():
+                        return full_response.strip()
+                except Exception as e2:
+                    print(f"[SPEECH_ENGINE ERROR] Minimal generation also failed: {e2}")
+
                 return self._get_fallback_response()
         else:
             print("[SPEECH_ENGINE] No GPT4All model. Using fallback response.")
