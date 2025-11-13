@@ -110,62 +110,33 @@ class SpeechEngine(QObject):
             return False
 
     def init_gpt4all(self):
-        print("[SPEECH_ENGINE] init_gpt4all started.")
+        """Initialize Phi-3-mini-4k-instruct-q4.gguf model using efficient test.py approach."""
+        print("[NEO] Loading Phi-3-mini-4k-instruct-q4.gguf...")
+
         try:
-            from gpt4all import GPT4All
-            import shutil
-            import pathlib
-
-            # Create local model directory in user home
+            # Use the same efficient path finding as test.py
             model_dir = pathlib.Path.home() / ".local" / "share" / "neo" / "models"
-            model_dir.mkdir(parents=True, exist_ok=True)
+            model = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
 
-            local_model_path = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
-
-            # Check external drive path (original location)
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            external_model_path = os.path.join(base_dir, "models", "Phi-3-mini-4k-instruct-q4.gguf")
-
-            model_found = False
-
-            # Try local path first (fast)
-            if local_model_path.exists():
-                model_path = str(local_model_path)
-                print(f"[SPEECH_ENGINE] Using local model from: {model_path}")
-                model_found = True
-            # Try external path (slow)
-            elif os.path.exists(external_model_path):
-                model_path = external_model_path
-                print(f"[SPEECH_ENGINE] Using external model from: {model_path}")
-                print(f"[SPEECH_ENGINE] WARNING: External drive detected. Copying to local storage for better performance...")
-                try:
-                    shutil.copy2(external_model_path, local_model_path)
-                    model_path = str(local_model_path)
-                    print(f"[SPEECH_ENGINE] Model copied to local storage: {model_path}")
-                    model_found = True
-                except Exception as copy_error:
-                    print(f"[SPEECH_ENGINE WARNING] Failed to copy model: {copy_error}. Using external path.")
-                    model_found = True
+            # Fallback to external path if not found locally
+            if not model.exists():
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                external_model = base_dir / "models" / "Phi-3-mini-4k-instruct-q4.gguf"
+                if external_model.exists():
+                    model = external_model
+                    print(f"[NEO] Using external model: {model}")
+                else:
+                    raise FileNotFoundError(f"Phi-3 model not found at {model} or {external_model}")
             else:
-                print(f"[SPEECH_ENGINE WARNING] GPT4All model not found at any location.")
-                print(f"[SPEECH_ENGINE] Searched paths:")
-                print(f"  - Local: {local_model_path}")
-                print(f"  - External: {external_model_path}")
-                self.gpt4all_model = None
-                return
+                print(f"[NEO] Using local model: {model}")
 
-            # Load model with optimized settings
-            print(f"[SPEECH_ENGINE] Attempting to load GPT4All model from: {model_path}")
+            # Load model efficiently - same as test.py
+            model_path = str(model)
+            self.gpt4all_model = GPT4All(model_path)
+            print("[NEO] Phi-3 model loaded successfully - Neo is ready!")
 
-            # Validate model file size (should be ~2.5GB for Phi-3-mini-4k-instruct-q4)
-            model_size = os.path.getsize(model_path) / (1024**3)  # GB
-            if model_size < 1.0:  # Less than 1GB is likely wrong model
-                print(f"[SPEECH_ENGINE WARNING] Model file seems too small: {model_size:.2f}GB")
-
-            self.gpt4all_model = GPT4All(model_path, allow_download=False)
-            print("[SPEECH_ENGINE] GPT4All AI brain loaded successfully.")
         except Exception as e:
-            print(f"[SPEECH_ENGINE WARNING] GPT4All init failed: {e}. Using fallback responses.")
+            print(f"[NEO ERROR] Failed to load Phi-3 model: {e}")
             self.gpt4all_model = None
 
     def start(self):
