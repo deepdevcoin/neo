@@ -48,6 +48,7 @@ class InitializationWorker(QObject):
         self.speech_engine = speech_engine
         self.threadpool = QThreadPool()
         self.steps_to_finish = 0
+        self.finished_steps = set()
 
     def dependency_check(self):
         print("[DEPENDENCY CHECK] Verifying core dependencies...")
@@ -56,7 +57,6 @@ class InitializationWorker(QObject):
             print("[DEPENDENCY CHECK] ffplay: OK")
         else:
             print("[DEPENDENCY CHECK] ffplay: Not found. Will attempt to use pygame for audio.")
-        # Add other checks here as needed
 
     def run(self):
         self.steps = [
@@ -69,27 +69,19 @@ class InitializationWorker(QObject):
         ]
         self.steps_to_finish = len(self.steps)
         self.signals.step_finished.connect(self.on_step_finished)
-        # Run GPT4All loading in a separate thread from the start
-        gpt4all_step = InitStep("Loading AI Brain (GPT4All)…", self.speech_engine.init_gpt4all, self.signals)
-        self.threadpool.start(gpt4all_step)
 
-        # Run other steps
         for step_text, init_func in self.steps:
-            if "GPT4All" not in step_text: # Don't re-run the gpt4all step
-                step_runnable = InitStep(step_text, init_func, self.signals)
-                self.threadpool.start(step_runnable)
+            step_runnable = InitStep(step_text, init_func, self.signals)
+            self.threadpool.start(step_runnable)
 
     def on_step_finished(self, step_text):
-        # This logic needs adjustment to handle the async loading properly
-        if step_text == "Loading AI Brain (GPT4All)…":
-            # You might want to display progress here in a more advanced setup
-            pass
-        self.steps_to_finish -= 1
-        if self.steps_to_finish == 0:
-            self.signals.loading_complete.emit()
+        if step_text not in self.finished_steps:
+            self.finished_steps.add(step_text)
+            self.steps_to_finish -= 1
+            if self.steps_to_finish == 0:
+                self.signals.loading_complete.emit()
 
 
-# ... (Rest of the file is largely the same as the previous version with minor adjustments for clarity)
 class LogViewer(QWidget):
     loading_complete = pyqtSignal()
     
@@ -204,7 +196,7 @@ class LogViewer(QWidget):
         self.worker.signals.status_update.connect(self.update_status)
         self.worker.signals.loading_complete.connect(self.on_complete)
         self.worker.signals.loading_error.connect(self.on_error)
-        self.worker.run() # Corrected worker execution
+        self.worker.run()
     
     def update_status(self, status):
         self.status_label.setText(f"Status: {status}")

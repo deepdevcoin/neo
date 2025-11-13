@@ -82,18 +82,14 @@ class SpeechEngine(QObject):
         print("[SPEECH_ENGINE] init_gpt4all started.")
         try:
             from gpt4all import GPT4All
-            # Section 1: Model Path Optimization
             model_name = "Phi-3-mini-4k-instruct-q4.gguf"
-            # GPT4All handles caching in ~/.cache/gpt4all
             print(f"[SPEECH_ENGINE] Attempting to load/download GPT4All model: {model_name}")
             
-            # Section 2: GPT4All Generation Optimization
             self.gpt4all_model = GPT4All(
                 model_name, 
                 allow_download=True, 
                 n_threads=4,
-                n_ctx=1024, # Context window optimization
-                n_batch=8    # Batching optimization
+                n_ctx=1024 # Context window optimization
             )
             print("[SPEECH_ENGINE] GPT4All AI brain loaded successfully.")
         except Exception as e:
@@ -157,8 +153,8 @@ class SpeechEngine(QObject):
                 self.tts_engine.tts_to_file(text=text, file_path=path)
                 print(f"[SPEECH_ENGINE] TTS audio written to {path}")
 
-                # Section 3: TTS Audio Output Fix
                 if self.audio_player_available == "ffplay":
+                    import subprocess
                     subprocess.run(["ffplay", "-nodisp", "-autoexit", path], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 elif self.audio_player_available == "pygame":
                     pygame.mixer.music.load(path)
@@ -175,7 +171,6 @@ class SpeechEngine(QObject):
         except Exception as e:
             print(f"[SPEECH_ENGINE ERROR] TTS execution failed: {e}")
         finally:
-            # Section 3: Temporary file cleanup
             if os.path.exists(path):
                 os.remove(path)
                 print(f"[SPEECH_ENGINE] Cleaned up temporary file: {path}")
@@ -191,7 +186,6 @@ class SpeechEngine(QObject):
                 full_response = ""
                 print("[SPEECH_ENGINE] Calling gpt4all_model.generate with streaming...")
                 
-                # Section 2: GPT4All Generation Optimization
                 response_generator = self.gpt4all_model.generate(
                     prompt=f"User: {prompt}\nJarvis:",
                     max_tokens=80, # Reduced for faster responses
@@ -200,11 +194,9 @@ class SpeechEngine(QObject):
                 )
                 
                 token_count = 0
-                last_token_time = time.time()
                 first_token_time = None
 
                 for token in response_generator:
-                    # Section 2: Add generation timeout
                     if time.time() - generation_start_time > 30:
                         print("[SPEECH_ENGINE ERROR] Generation timed out after 30 seconds.")
                         return "My apologies, the generation process took too long to complete."
@@ -232,6 +224,5 @@ class SpeechEngine(QObject):
                 print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed: {e}")
                 return "I seem to be having trouble processing that request."
         else:
-            # Section 4: Fallback response
             print("[SPEECH_ENGINE] No GPT4All model. Using fallback response.")
             return "My AI core is not currently available."
