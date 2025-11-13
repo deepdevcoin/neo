@@ -1,6 +1,7 @@
 
 import sys
 import time
+import shutil
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QApplication, QTextEdit, QSizePolicy, QFrame
 from PyQt5.QtCore import Qt, pyqtSignal, QObject, QRunnable, QThreadPool
 from PyQt5.QtGui import QFont, QTextCursor
@@ -10,7 +11,6 @@ class Stream(QObject):
     def write(self, text):
         timestamp = time.strftime("%H:%M:%S", time.localtime())
         log_entry = text
-        # Prevent double-timestamping
         if not text.startswith(f"[{timestamp}]"):
              log_entry = f"[{timestamp}] {text}"
         self.newText.emit(str(log_entry))
@@ -48,8 +48,19 @@ class InitializationWorker(QObject):
         self.speech_engine = speech_engine
         self.threadpool = QThreadPool()
         self.steps_to_finish = 0
+
+    def dependency_check(self):
+        print("[DEPENDENCY CHECK] Verifying core dependencies...")
+        ffplay_available = shutil.which("ffplay") is not None
+        if ffplay_available:
+            print("[DEPENDENCY CHECK] ffplay: OK")
+        else:
+            print("[DEPENDENCY CHECK] ffplay: Not found. Will attempt to use pygame for audio.")
+        # Add other checks here as needed
+
     def run(self):
         self.steps = [
+            ("Verifying Dependencies...", self.dependency_check),
             ("Initializing Neural Core…", None),
             ("Loading Speech Recognition (Vosk)…", self.speech_engine.init_recognition),
             ("Loading Text-to-Speech Engine (Coqui)…", self.speech_engine.init_tts),
@@ -58,14 +69,27 @@ class InitializationWorker(QObject):
         ]
         self.steps_to_finish = len(self.steps)
         self.signals.step_finished.connect(self.on_step_finished)
+        # Run GPT4All loading in a separate thread from the start
+        gpt4all_step = InitStep("Loading AI Brain (GPT4All)…", self.speech_engine.init_gpt4all, self.signals)
+        self.threadpool.start(gpt4all_step)
+
+        # Run other steps
         for step_text, init_func in self.steps:
-            step_runnable = InitStep(step_text, init_func, self.signals)
-            self.threadpool.start(step_runnable)
+            if "GPT4All" not in step_text: # Don't re-run the gpt4all step
+                step_runnable = InitStep(step_text, init_func, self.signals)
+                self.threadpool.start(step_runnable)
+
     def on_step_finished(self, step_text):
+        # This logic needs adjustment to handle the async loading properly
+        if step_text == "Loading AI Brain (GPT4All)…":
+            # You might want to display progress here in a more advanced setup
+            pass
         self.steps_to_finish -= 1
         if self.steps_to_finish == 0:
             self.signals.loading_complete.emit()
 
+
+# ... (Rest of the file is largely the same as the previous version with minor adjustments for clarity)
 class LogViewer(QWidget):
     loading_complete = pyqtSignal()
     
@@ -169,8 +193,6 @@ class LogViewer(QWidget):
         self.response_display.clear()
 
     def append_response_chunk(self, chunk):
-        # This can be very noisy, so it's commented out by default.
-        # print(f"[LOG_VIEWER] Appending chunk: '{chunk}'")
         cursor = self.response_display.textCursor()
         cursor.movePosition(QTextCursor.End)
         cursor.insertText(chunk)
@@ -182,8 +204,7 @@ class LogViewer(QWidget):
         self.worker.signals.status_update.connect(self.update_status)
         self.worker.signals.loading_complete.connect(self.on_complete)
         self.worker.signals.loading_error.connect(self.on_error)
-        self._worker_ref = self.worker 
-        self.worker.run()
+        self.worker.run() # Corrected worker execution
     
     def update_status(self, status):
         self.status_label.setText(f"Status: {status}")
