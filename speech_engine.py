@@ -154,7 +154,7 @@ class SpeechEngine(QObject):
     def _listen_loop(self):
         if not self.recognizer:
             return
-        print("[Neo] Audio stream started.")
+        print("[NEO] Audio stream started.")
         try:
             with sd.RawInputStream(samplerate=16000, blocksize=8000, channels=1, dtype="int16") as stream:
                 while self.running:
@@ -169,15 +169,15 @@ class SpeechEngine(QObject):
                         if result.get("text"):
                             self.speech_recognized.emit(result["text"])
         except Exception as e:
-            print(f"[ERROR] Audio stream failed: {e}")
+            print(f"[NEO ERROR] Audio stream failed: {e}")
 
     def start_recognition(self):
         self.recognition_active = True
-        print("[Neo] Listening...")
+        print("[NEO] Listening...")
 
     def stop_recognition(self):
         self.recognition_active = False
-        print("[Neo] No longer listening.")
+        print("[NEO] No longer listening.")
 
     def speak(self, text: str):
         print(f"[SPEECH_ENGINE] speak called with text: '{text[:30]}...'")
