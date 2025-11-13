@@ -388,31 +388,9 @@ class SpeechEngine(QObject):
                 print("[FALLBACK] Using lightweight contextual responses")
                 return self._get_contextual_response(prompt)
             except Exception as e:
-                print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed: {e}")
-                print(f"[SPEECH_ENGINE INFO] Trying with minimal parameters...")
-                try:
-                    # Fallback to ultra-basic non-streaming mode
-                    response = self.gpt4all_model.generate(
-                        prompt=f"User: {prompt}\nJarvis:",
-                        max_tokens=10,  # Extremely short responses
-                        temp=0.3,      # Very predictable responses
-                        streaming=False  # Non-streaming to save memory
-                    )
-
-                    if response and response.strip():
-                        token_count = len(response.split())
-                        print(f"[MEMORY-EFFICIENT] Fallback mode generated {token_count} tokens")
-
-                        # Simulate streaming for UI
-                        for char in response:
-                            self.response_chunk_ready.emit(char)
-                            time.sleep(0.01)
-
-                        return response.strip()
-                except Exception as e2:
-                    print(f"[SPEECH_ENGINE ERROR] Minimal generation also failed: {e2}")
-
-                return self._get_fallback_response()
+                print(f"[SPEECH_ENGINE ERROR] GPT4All generation failed completely: {e}")
+                print("[SPEECH_ENGINE INFO] Using contextual responses instead")
+                return self._get_contextual_response(prompt)
         else:
             print("[SPEECH_ENGINE] No GPT4All model. Using fallback response.")
 
