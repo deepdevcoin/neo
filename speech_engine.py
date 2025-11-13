@@ -180,9 +180,9 @@ class SpeechEngine(QObject):
         print("[NEO] No longer listening.")
 
     def speak(self, text: str):
-        print(f"[SPEECH_ENGINE] speak called with text: '{text[:30]}...'")
+        print(f"[NEO] Speaking: '{text[:30]}...'")
         if not self.tts_engine or not text:
-            print("[SPEECH_ENGINE] speak aborted: TTS engine not ready or text is empty.")
+            print("[NEO WARNING] Speak aborted: TTS engine not ready or text is empty.")
             return
         self.tts_started.emit(text)
         threading.Thread(target=self._tts_task, args=(text,), daemon=True).start()
