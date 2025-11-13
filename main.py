@@ -62,12 +62,12 @@ class GenerationWorker(QRunnable):
         finally:
             container['done'] = True
 
-class JarvisWindow(QMainWindow):
+class NeoWindow(QMainWindow):
     def __init__(self, speech_engine: SpeechEngine):
         super().__init__()
         print("[MAIN_WINDOW] Initializing...")
         self.speech_engine = speech_engine
-        self.setWindowTitle("Jarvis Neural Core")
+        self.setWindowTitle("Neo Neural Core")
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
@@ -153,7 +153,7 @@ class JarvisWindow(QMainWindow):
 
     def on_response_ready(self, full_response):
         print("[MAIN_WINDOW] on_response_ready signal received.")
-        print(f"[JARVIS]: {full_response}")
+        print(f"[Neo]: {full_response}")
 
         # Check TTS availability before attempting to speak
         if hasattr(self.speech_engine, 'tts_method') and self.speech_engine.tts_method == "none":
@@ -262,7 +262,7 @@ class Application:
 
     def start_main_app(self):
         print("[APPLICATION] Starting main app window.")
-        self.main_window = JarvisWindow(self.speech_engine)
+        self.main_window = NeoWindow(self.speech_engine)
         self.main_window.show()
 
     def run(self):

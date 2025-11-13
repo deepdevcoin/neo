@@ -14,7 +14,7 @@ try:
 
     # Try to find model
     import pathlib
-    model_dir = pathlib.Path.home() / ".local" / "share" / "jarvis" / "models"
+    model_dir = pathlib.Path.home() / ".local" / "share" / "neo" / "models"
     model_path = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
 
     if not model_path.exists():

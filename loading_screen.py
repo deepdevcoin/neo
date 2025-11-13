@@ -104,7 +104,7 @@ class InitializationWorker(QObject):
         # Check model directory and file
         import os
         import pathlib
-        model_dir = pathlib.Path.home() / ".local" / "share" / "jarvis" / "models"
+        model_dir = pathlib.Path.home() / ".local" / "share" / "neo" / "models"
         local_model_path = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
 
         if local_model_path.exists():
@@ -151,7 +151,7 @@ class LogViewer(QWidget):
         layout.setSpacing(10)
         layout.setContentsMargins(20, 20, 20, 20)
         
-        title = QLabel("J.A.R.V.I.S. STATUS")
+        title = QLabel("NEO. STATUS")
         title.setFont(QFont("Consolas", 24, QFont.Bold))
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("color: #00FF7F;")
@@ -251,13 +251,13 @@ class LogViewer(QWidget):
     
     def on_complete(self):
         print("[LOG_VIEWER] Loading complete.")
-        print("[JARVIS] System is online.")
+        print("[Neo] System is online.")
         self.status_label.setText("Status: ONLINE")
         self.loading_complete.emit()
     
     def on_error(self, error):
         print(f"[LOG_VIEWER] CRITICAL ERROR received: {error}")
-        print(f"[JARVIS] CRITICAL ERROR: {error}")
+        print(f"[Neo] CRITICAL ERROR: {error}")
         self.status_label.setText("Status: DEGRADED MODE")
         self.status_label.setStyleSheet("color: #FF6B6B;")
 

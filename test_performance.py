@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Performance test script to verify JARVIS optimizations
+Performance test script to verify Neo optimizations
 """
 import os
 import sys
@@ -23,7 +23,7 @@ def test_model_path_optimization():
     import shutil
 
     # Test local model directory creation
-    model_dir = pathlib.Path.home() / ".local" / "share" / "jarvis" / "models"
+    model_dir = pathlib.Path.home() / ".local" / "share" / "neo" / "models"
     print(f"✓ Model directory would be created at: {model_dir}")
 
     # Test external drive path check
@@ -85,7 +85,7 @@ def test_dependency_validation():
 
 def main():
     """Run all performance tests."""
-    print("J.A.R.V.I.S Performance Optimization Test")
+    print("NEO Performance Optimization Test")
     print("=" * 50)
 
     tests = [

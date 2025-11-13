@@ -1,6 +1,6 @@
-# Jarvis Neural Core - Enhanced Desktop Application
+# Neo Neural Core - Enhanced Desktop Application
 
-A sophisticated, always-on-top desktop overlay featuring a smooth-animated 3D neural orb with real-time speech recognition, TTS responses, and intelligent action execution. Fully transparent holographic interface inspired by Tony Stark's Jarvis.
+A sophisticated, always-on-top desktop overlay featuring a smooth-animated 3D neural orb with real-time speech recognition, TTS responses, and intelligent action execution. Fully transparent holographic interface inspired by Tony Stark's Neo.
 
 ## Features
 
@@ -8,7 +8,7 @@ A sophisticated, always-on-top desktop overlay featuring a smooth-animated 3D ne
 - **Smooth Animations** - All transitions use mathematical easing (lerp, quad, cubic) for natural motion
 - **Real-Time Audio Reactivity** - Orb expands and brightens based on microphone input
 - **Offline Speech Recognition** - Vosk-powered privacy-focused voice commands
-- **Text-to-Speech Responses** - pyttsx3 integration with Jarvis-like voice
+- **Text-to-Speech Responses** - pyttsx3 integration with Neo-like voice
 - **Typing Animation Overlay** - Green monospace (#00FF7F) text with cinematic typewriter effect (5s fade)
 - **Action Mode** - Orb moves right, shrinks, executes commands, returns to center
 - **Hotkey Activation** - Global Ctrl+Space for hands-free control
@@ -67,7 +67,7 @@ python main.py
 ### Controls
 
 - **Ctrl+Space** - Toggle listening mode on/off
-- **Speak Naturally** - Jarvis listens and responds
+- **Speak Naturally** - Neo listens and responds
 - **Action Commands** - Say "open browser", "open terminal", "show time"
 - Close window normally to exit gracefully
 
@@ -75,7 +75,7 @@ python main.py
 
 1. Press **Ctrl+Space** to activate listening mode
 2. Speak clearly into your microphone
-3. Jarvis recognizes speech and displays typing animation
+3. Neo recognizes speech and displays typing animation
 4. The orb reacts with color and size changes
 5. For commands (e.g., "open terminal"), orb moves right and executes action
 6. Orb returns to center after action completion
@@ -124,7 +124,7 @@ elif 'notes' in command.lower():
 ## Project Structure
 
 \`\`\`
-jarvis-neural-core/
+Neo-neural-core/
 ├── main.py                  # Entry point, window management, state logic
 ├── orb_renderer.py          # 3D particle network rendering with easing
 ├── audio_listener.py        # Real-time microphone amplitude detection
@@ -196,4 +196,4 @@ Built with:
 
 ---
 
-**Enjoy your personal Jarvis AI! Press Ctrl+Space to get started.**
+**Enjoy your personal Neo AI! Press Ctrl+Space to get started.**

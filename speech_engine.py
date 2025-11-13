@@ -64,7 +64,7 @@ class SpeechEngine(QObject):
         try:
             from TTS.api import TTS
             device = "cpu"
-            print(f"[JARVIS] TTS using device: {device}")
+            print(f"[Neo] TTS using device: {device}")
             self.tts_engine = TTS("tts_models/en/ljspeech/glow-tts", gpu=False)
             self.tts_engine.to(device)
             self.tts_method = "coqui"
@@ -114,7 +114,7 @@ class SpeechEngine(QObject):
             import pathlib
 
             # Create local model directory in user home
-            model_dir = pathlib.Path.home() / ".local" / "share" / "jarvis" / "models"
+            model_dir = pathlib.Path.home() / ".local" / "share" / "neo" / "models"
             model_dir.mkdir(parents=True, exist_ok=True)
 
             local_model_path = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
@@ -180,7 +180,7 @@ class SpeechEngine(QObject):
     def _listen_loop(self):
         if not self.recognizer:
             return
-        print("[JARVIS] Audio stream started.")
+        print("[Neo] Audio stream started.")
         try:
             with sd.RawInputStream(samplerate=16000, blocksize=8000, channels=1, dtype="int16") as stream:
                 while self.running:
@@ -199,11 +199,11 @@ class SpeechEngine(QObject):
 
     def start_recognition(self):
         self.recognition_active = True
-        print("[JARVIS] Listening...")
+        print("[Neo] Listening...")
 
     def stop_recognition(self):
         self.recognition_active = False
-        print("[JARVIS] No longer listening.")
+        print("[Neo] No longer listening.")
 
     def speak(self, text: str):
         print(f"[SPEECH_ENGINE] speak called with text: '{text[:30]}...'")
@@ -237,7 +237,7 @@ class SpeechEngine(QObject):
         """Handle Coqui TTS with multiple playback options."""
         import subprocess
         import os
-        path = "/tmp/jarvis_tts.wav"
+        path = "/tmp/neo_tts.wav"
 
         try:
             # Generate audio file
@@ -358,7 +358,7 @@ class SpeechEngine(QObject):
                     gc.collect()
 
                     response = self.gpt4all_model.generate(
-                        prompt=f"User: {prompt}\nJarvis:",
+                        prompt=f"User: {prompt}\nNeo:",
                         max_tokens=10,  # Extremely short responses
                         temp=0.3,      # Very predictable responses
                         streaming=False  # Non-streaming to save memory
@@ -406,11 +406,11 @@ class SpeechEngine(QObject):
 
         # Greeting patterns
         if any(greeting in prompt_lower for greeting in ['hello', 'hi', 'hey', 'greetings']):
-            response = "Hello! I'm J.A.R.V.I.S. How can I assist you today?"
+            response = "Hello! I'm NEO. How can I assist you today?"
 
         # Name/identity patterns
         elif any(word in prompt_lower for word in ['name', 'who are you', 'your name']):
-            response = "I'm J.A.R.V.I.S., your virtual assistant. I'm here to help you."
+            response = "I'm NEO., your virtual assistant. I'm here to help you."
 
         # Help patterns
         elif any(word in prompt_lower for word in ['help', 'assist', 'support']):

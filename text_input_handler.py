@@ -1,5 +1,5 @@
 """
-Text input handler for Jarvis - allows typing commands at the bottom of screen
+Text input handler for Neo - allows typing commands at the bottom of screen
 """
 
 from PyQt5.QtWidgets import QWidget, QLineEdit, QVBoxLayout

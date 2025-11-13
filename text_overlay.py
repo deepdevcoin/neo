@@ -1,5 +1,5 @@
 """
-Text overlay with typing animation for Jarvis responses
+Text overlay with typing animation for Neo responses
 """
 
 from PyQt5.QtWidgets import QWidget, QLabel
