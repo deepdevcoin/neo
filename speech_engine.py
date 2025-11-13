@@ -66,13 +66,55 @@ class SpeechEngine(QObject):
         print("[SPEECH_ENGINE] init_gpt4all started.")
         try:
             from gpt4all import GPT4All
+            import shutil
+            import pathlib
+
+            # Create local model directory in user home
+            model_dir = pathlib.Path.home() / ".local" / "share" / "jarvis" / "models"
+            model_dir.mkdir(parents=True, exist_ok=True)
+
+            local_model_path = model_dir / "Phi-3-mini-4k-instruct-q4.gguf"
+
+            # Check external drive path (original location)
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            model_path = os.path.join(base_dir, "models", "Phi-3-mini-4k-instruct-q4.gguf")
-            print(f"[SPEECH_ENGINE] Attempting to load GPT4All model from: {model_path}")
-            if not os.path.exists(model_path):
-                print(f"[SPEECH_ENGINE WARNING] GPT4All model not found at {model_path}. Using fallback responses.")
+            external_model_path = os.path.join(base_dir, "models", "Phi-3-mini-4k-instruct-q4.gguf")
+
+            model_found = False
+
+            # Try local path first (fast)
+            if local_model_path.exists():
+                model_path = str(local_model_path)
+                print(f"[SPEECH_ENGINE] Using local model from: {model_path}")
+                model_found = True
+            # Try external path (slow)
+            elif os.path.exists(external_model_path):
+                model_path = external_model_path
+                print(f"[SPEECH_ENGINE] Using external model from: {model_path}")
+                print(f"[SPEECH_ENGINE] WARNING: External drive detected. Copying to local storage for better performance...")
+                try:
+                    shutil.copy2(external_model_path, local_model_path)
+                    model_path = str(local_model_path)
+                    print(f"[SPEECH_ENGINE] Model copied to local storage: {model_path}")
+                    model_found = True
+                except Exception as copy_error:
+                    print(f"[SPEECH_ENGINE WARNING] Failed to copy model: {copy_error}. Using external path.")
+                    model_found = True
+            else:
+                print(f"[SPEECH_ENGINE WARNING] GPT4All model not found at any location.")
+                print(f"[SPEECH_ENGINE] Searched paths:")
+                print(f"  - Local: {local_model_path}")
+                print(f"  - External: {external_model_path}")
                 self.gpt4all_model = None
                 return
+
+            # Load model with optimized settings
+            print(f"[SPEECH_ENGINE] Attempting to load GPT4All model from: {model_path}")
+
+            # Validate model file size (should be ~2.5GB for Phi-3-mini-4k-instruct-q4)
+            model_size = os.path.getsize(model_path) / (1024**3)  # GB
+            if model_size < 1.0:  # Less than 1GB is likely wrong model
+                print(f"[SPEECH_ENGINE WARNING] Model file seems too small: {model_size:.2f}GB")
+
             self.gpt4all_model = GPT4All(model_path, allow_download=False)
             print("[SPEECH_ENGINE] GPT4All AI brain loaded successfully.")
         except Exception as e:
