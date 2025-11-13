@@ -417,6 +417,64 @@ class SpeechEngine(QObject):
 
         return self._get_fallback_response()
 
+    def _get_contextual_response(self, prompt: str) -> str:
+        """Get a contextual response based on the user's input (no AI needed)."""
+        import re
+        prompt_lower = prompt.lower().strip()
+
+        # Simulate processing time
+        time.sleep(0.5)
+
+        # Greeting patterns
+        if any(greeting in prompt_lower for greeting in ['hello', 'hi', 'hey', 'greetings']):
+            response = "Hello! I'm J.A.R.V.I.S. How can I assist you today?"
+
+        # Name/identity patterns
+        elif any(word in prompt_lower for word in ['name', 'who are you', 'your name']):
+            response = "I'm J.A.R.V.I.S., your virtual assistant. I'm here to help you."
+
+        # Help patterns
+        elif any(word in prompt_lower for word in ['help', 'assist', 'support']):
+            response = "I'm here to help! You can ask me questions or give me commands."
+
+        # Time patterns
+        elif any(word in prompt_lower for word in ['time', 'clock']):
+            import datetime
+            current_time = datetime.datetime.now().strftime('%H:%M')
+            response = f"The current time is {current_time}."
+
+        # Question patterns
+        elif any(word in prompt_lower for word in ['what', 'how', 'why', 'where', 'when']):
+            response = "That's an interesting question. I'd be happy to discuss it with you."
+
+        # Thank you patterns
+        elif any(word in prompt_lower for word in ['thank', 'thanks', 'appreciate']):
+            response = "You're very welcome! Is there anything else I can help you with?"
+
+        # Goodbye patterns
+        elif any(word in prompt_lower for word in ['goodbye', 'bye', 'see you', 'farewell']):
+            response = "Goodbye! Feel free to call on me anytime you need assistance."
+
+        # Default response
+        else:
+            responses = [
+                "I understand. How can I help you with that?",
+                "Interesting! Tell me more about what you need.",
+                "I'm here to assist you. What would you like me to do?",
+                "Acknowledged. I'm ready to help.",
+                "I'm processing your request. How else can I assist?"
+            ]
+            response = responses[hash(prompt_lower) % len(responses)]
+
+        print(f"[LIGHTWEIGHT] Contextual response: '{response}'")
+
+        # Simulate streaming for natural feel
+        for char in response:
+            self.response_chunk_ready.emit(char)
+            time.sleep(0.01)
+
+        return response
+
     def _get_fallback_response(self) -> str:
         """Get a fallback response with simulated streaming."""
         import random
