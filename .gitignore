@@ -1,5 +1,9 @@
 /vosk-model-small-en-us-0.15
 /__pycache__/
 /obselete/
+/.vscode/
+/models/
+/.venv/
+
 
 

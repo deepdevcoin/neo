@@ -1,73 +1,69 @@
-"""
-Audio Listener - Captures microphone input and calculates amplitude
-"""
-
-import sounddevice as sd
 import numpy as np
-from PyQt5.QtCore import QObject, pyqtSignal, QThread
+import sounddevice as sd
+from PyQt5.QtCore import QObject, pyqtSignal
 import queue
+import threading
 
 
 class AudioListener(QObject):
-    amplitude_changed = pyqtSignal(float)
+    amplitude_updated = pyqtSignal(float)
     
-    def __init__(self, sample_rate=44100, block_size=1024):
+    def __init__(self, sample_rate=44100, chunk_size=2048):
         super().__init__()
         self.sample_rate = sample_rate
-        self.block_size = block_size
+        self.chunk_size = chunk_size
+        self.is_listening = False
         self.audio_queue = queue.Queue()
-        self.running = True
         self.stream = None
-        
-        # Smoothing parameters
-        self.smoothed_amplitude = 0.0
-        self.smoothing_factor = 0.3
-        
-        self.start()
-        
-    def audio_callback(self, indata, frames, time, status):
-        """Callback for audio stream"""
-        if status:
-            print(f"Audio status: {status}")
-        
-        # Calculate RMS amplitude
-        amplitude = np.sqrt(np.mean(indata**2))
-        
-        # Smooth the amplitude
-        self.smoothed_amplitude = (
-            self.smoothing_factor * amplitude + 
-            (1 - self.smoothing_factor) * self.smoothed_amplitude
-        )
-        
-        # Normalize to 0-1 range (assuming typical speech is < 0.1 RMS)
-        normalized = min(self.smoothed_amplitude * 10, 1.0)
-        
-        # Emit signal
-        self.amplitude_changed.emit(normalized)
-        
+        self.running = False  # Flag to control the listening loop
+    
     def start(self):
-        """Start capturing audio"""
         try:
             self.stream = sd.InputStream(
                 channels=1,
                 samplerate=self.sample_rate,
-                blocksize=self.block_size,
-                callback=self.audio_callback
+                blocksize=self.chunk_size,
+                callback=self._audio_callback
             )
             self.stream.start()
-            print("🎤 Audio listener started")
+
+            self.running = True
+            # Run listening loop in separate thread
+            threading.Thread(target=self._listen_loop, daemon=True).start()
         except Exception as e:
-            print(f"❌ Failed to start audio listener: {e}")
-            print("Make sure your microphone is connected and accessible")
-            
+            print(f"Audio error: {e}")
+    
+    def _audio_callback(self, indata, frames, time, status):
+        """Callback for audio stream"""
+        if status:
+            print(f"Audio status: {status}")
+        self.audio_queue.put(indata.copy())
+    
+    def _listen_loop(self):
+        """Process audio and emit amplitude"""
+        while self.running:
+            try:
+                audio_data = self.audio_queue.get(timeout=0.1)
+                if self.is_listening:
+                    rms = np.sqrt(np.mean(audio_data ** 2))
+                    self.amplitude_updated.emit(float(rms))
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print(f"Listener error: {e}")
+                break
+    
+    def start_listening(self):
+        """Activate listening mode"""
+        self.is_listening = True
+    
+    def stop_listening(self):
+        """Deactivate listening mode"""
+        self.is_listening = False
+    
     def stop(self):
-        """Stop capturing audio"""
+        """Stop audio stream and listening loop"""
         self.running = False
         if self.stream:
             self.stream.stop()
             self.stream.close()
-        print("🔇 Audio listener stopped")
-        
-    def get_amplitude(self):
-        """Get current smoothed amplitude"""
-        return self.smoothed_amplitude

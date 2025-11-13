@@ -1,192 +1,141 @@
 """
-Neural Orb Renderer - Handles 3D particle system and OpenGL rendering
+Enhanced 3D Neural Orb Renderer with smooth animations and state management
 """
 
 import numpy as np
-from OpenGL.GL import *
-from OpenGL.GLU import gluPerspective
+from vispy import scene
 import math
 
 
-class NeuralOrbRenderer:
-    def __init__(self, parent):
-        self.parent = parent
+class OrbRenderer:
+    def __init__(self, canvas, num_particles=150):
+        self.canvas = canvas
+        self.num_particles = num_particles
+        self.reactivity = 0.0
         self.rotation_angle = 0.0
-        self.particles = []
-        self.connections = []
-        self.num_particles = 400
-        self.max_connection_distance = 0.3
+        self.scale = 1.0
+        self.action_mode = False
+        self.pulse_strength = 0.0
+        self.base_color = np.array([1.0, 0.48, 0.11])  # Orange/gold #FF7A18
         
-    def initialize(self):
-        """Initialize OpenGL settings and generate particle system"""
-        glClearColor(0.0, 0.0, 0.0, 0.0)
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glEnable(GL_DEPTH_TEST)
-        glEnable(GL_LINE_SMOOTH)
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
-        glEnable(GL_POINT_SMOOTH)
-        glHint(GL_POINT_SMOOTH_HINT, GL_NICEST)
+        # Create view
+        self.view = canvas.central_widget.add_view()
+        self.view.camera = 'turntable'
+        self.view.camera.fov = 45
         
-        self.generate_particles()
+        self.particles = self._create_particles()
         
-    def generate_particles(self):
-        """Generate particles in a spherical distribution"""
-        self.particles = []
-        for i in range(self.num_particles):
-            # Spherical coordinates for even distribution
-            phi = np.random.uniform(0, 2 * np.pi)
-            theta = np.arccos(np.random.uniform(-1, 1))
-            r = np.random.uniform(0.3, 0.8)
-            
-            x = r * np.sin(theta) * np.cos(phi)
-            y = r * np.sin(theta) * np.sin(phi)
-            z = r * np.cos(theta)
-            
-            # Add slight random drift velocity
-            vx = np.random.uniform(-0.001, 0.001)
-            vy = np.random.uniform(-0.001, 0.001)
-            vz = np.random.uniform(-0.001, 0.001)
-            
-            self.particles.append({
-                'pos': np.array([x, y, z]),
-                'vel': np.array([vx, vy, vz]),
-                'phase': np.random.uniform(0, 2 * np.pi)
-            })
-            
+        # Create scatter plot
+        self.scatter = scene.visuals.Markers()
+        self.scatter.set_data(
+            self.particles['positions'],
+            size=5,
+            edge_color=(1, 0.48, 0.11, 0.8),
+            face_color=(1, 0.48, 0.11, 0.6)
+        )
+        self.view.add(self.scatter)
+        
+        # Create neural network lines
+        self.line_visual = scene.visuals.Line(
+            pos=np.zeros((0, 3)),
+            color=(1, 0.7, 0.3, 0.4),
+            width=1.0
+        )
+        self.view.add(self.line_visual)
+        
+        self.halo_visual = scene.visuals.Markers()
         self.update_connections()
+    
+    def _create_particles(self, radius=1.2):
+        """Create particle positions using Fibonacci sphere algorithm"""
+        positions = []
+        golden_angle = np.pi * (3.0 - np.sqrt(5.0))
         
+        for i in range(self.num_particles):
+            y = 1 - (i / float(self.num_particles - 1)) * 2
+            radius_at_y = np.sqrt(1 - y * y)
+            theta = golden_angle * i
+            
+            x = np.cos(theta) * radius_at_y
+            z = np.sin(theta) * radius_at_y
+            
+            positions.append([x, y, z])
+        
+        return {'positions': np.array(positions) * radius}
+    
     def update_connections(self):
-        """Calculate which particles should be connected"""
-        self.connections = []
-        for i in range(len(self.particles)):
-            for j in range(i + 1, len(self.particles)):
-                dist = np.linalg.norm(
-                    self.particles[i]['pos'] - self.particles[j]['pos']
-                )
-                if dist < self.max_connection_distance:
-                    self.connections.append((i, j, dist))
-                    
-    def resize(self, w, h):
-        """Handle window resize"""
-        if h == 0:
-            h = 1
-        glViewport(0, 0, w, h)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(45.0, w / h, 0.1, 50.0)
-        glMatrixMode(GL_MODELVIEW)
+        """Update neural network connections"""
+        connection_distance = 0.9
+        lines = []
         
-    def render(self, amplitude, listening_active):
-        """Main render function"""
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
+        for i, pos1 in enumerate(self.particles['positions']):
+            for j, pos2 in enumerate(self.particles['positions']):
+                if i < j:
+                    dist = np.linalg.norm(pos1 - pos2)
+                    if dist < connection_distance:
+                        lines.append(pos1)
+                        lines.append(pos2)
         
-        # Camera position
-        glTranslatef(0.0, 0.0, -3.0)
+        if lines:
+            self.line_visual.set_data(np.array(lines))
+    
+    def set_reactivity(self, value):
+        """Set audio reactivity (0-1) with smooth easing"""
+        self.reactivity = max(0.0, min(1.0, value))
+    
+    def set_scale(self, scale):
+        """Set orb scale for animation"""
+        self.scale = max(0.3, min(2.0, scale))
+    
+    def set_action_mode(self, active):
+        """Enter/exit action mode with color changes"""
+        self.action_mode = active
+    
+    def trigger_pulse(self):
+        """Trigger energy pulse when speaking"""
+        self.pulse_strength = 1.0
+    
+    def update(self):
+        """Update animation frame with smooth transitions"""
+        # Rotate orb
+        self.rotation_angle += 0.8
+        angle_rad = np.radians(self.rotation_angle)
         
-        # Rotation animation
-        self.rotation_angle += 0.2
-        glRotatef(self.rotation_angle * 0.3, 0, 1, 0)
-        glRotatef(self.rotation_angle * 0.2, 1, 0, 0)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
         
-        # Update particles with ambient drift
-        for particle in self.particles:
-            particle['pos'] += particle['vel']
-            
-            # Keep particles bounded in sphere
-            dist = np.linalg.norm(particle['pos'])
-            if dist > 1.0:
-                particle['pos'] *= 0.98
-                
-        # Periodically update connections
-        if int(self.rotation_angle) % 20 == 0:
-            self.update_connections()
-            
-        # Calculate glow intensity
-        base_intensity = 0.6
-        pulse_intensity = base_intensity + amplitude * 0.8
-        if listening_active:
-            pulse_intensity = max(pulse_intensity, 0.8)
-            
-        # Render connections (neural links)
-        self.render_connections(pulse_intensity)
+        rotated = []
+        for pos in self.particles['positions']:
+            x, y, z = pos
+            # Rotate around Y axis
+            new_x = x * cos_a - z * sin_a
+            new_z = x * sin_a + z * cos_a
+            rotated.append([new_x, y, new_z])
         
-        # Render particles (nodes)
-        self.render_particles(pulse_intensity, amplitude)
+        rotated = np.array(rotated)
         
-        # Render glow aura
-        self.render_aura(pulse_intensity, amplitude)
+        # Apply scale
+        rotated = rotated * self.scale
         
-    def render_connections(self, intensity):
-        """Render lines between connected particles"""
-        glBegin(GL_LINES)
-        for i, j, dist in self.connections:
-            alpha = (1.0 - dist / self.max_connection_distance) * intensity
-            
-            # Orange filament color #FFB347
-            glColor4f(1.0, 0.7, 0.28, alpha * 0.4)
-            
-            pos1 = self.particles[i]['pos']
-            pos2 = self.particles[j]['pos']
-            
-            glVertex3f(pos1[0], pos1[1], pos1[2])
-            glVertex3f(pos2[0], pos2[1], pos2[2])
-        glEnd()
+        # Apply reactivity and pulse
+        color_boost = self.reactivity + self.pulse_strength * 0.3
+        expansion = 1.0 + self.reactivity * 0.25 + self.pulse_strength * 0.15
         
-    def render_particles(self, intensity, amplitude):
-        """Render particle nodes"""
-        glPointSize(3.0 + amplitude * 2.0)
-        glBegin(GL_POINTS)
+        if self.action_mode:
+            face_color = (0.2, 0.8, 1.0, 0.6 + color_boost * 0.2)
+            edge_color = (0.4, 1.0, 1.0, 0.8)
+        else:
+            # Normal mode: orange/gold
+            face_color = (1.0, 0.48 + color_boost * 0.3, 0.11, 0.6 + color_boost * 0.2)
+            edge_color = (1.0, 0.7 + color_boost * 0.2, 0.3, 0.8)
         
-        for i, particle in enumerate(self.particles):
-            pos = particle['pos']
-            phase = particle['phase'] + self.rotation_angle * 0.05
-            
-            # Pulsing effect
-            pulse = 0.5 + 0.5 * math.sin(phase)
-            
-            # Inner glow color #FF7A18
-            r = 1.0
-            g = 0.48 + pulse * 0.2
-            b = 0.09
-            alpha = intensity * (0.6 + pulse * 0.4)
-            
-            # Brighter core particles
-            dist_from_center = np.linalg.norm(pos)
-            if dist_from_center < 0.5:
-                alpha *= 1.3
-                
-            glColor4f(r, g, b, alpha)
-            glVertex3f(pos[0], pos[1], pos[2])
-            
-        glEnd()
+        # Update scatter plot
+        self.scatter.set_data(
+            rotated * expansion,
+            size=5 + self.reactivity * 3 + self.pulse_strength * 2,
+            edge_color=edge_color,
+            face_color=face_color
+        )
         
-    def render_aura(self, intensity, amplitude):
-        """Render outer glow aura"""
-        glDisable(GL_DEPTH_TEST)
-        
-        num_layers = 3
-        for layer in range(num_layers):
-            radius = 1.0 + layer * 0.2 + amplitude * 0.3
-            alpha = intensity * 0.1 * (1.0 - layer / num_layers)
-            
-            glColor4f(1.0, 0.48, 0.09, alpha)
-            self.draw_sphere_outline(radius, 16, 16)
-            
-        glEnable(GL_DEPTH_TEST)
-        
-    def draw_sphere_outline(self, radius, slices, stacks):
-        """Draw a wireframe sphere for aura effect"""
-        for i in range(stacks):
-            lat0 = np.pi * (-0.5 + float(i) / stacks)
-            lat1 = np.pi * (-0.5 + float(i + 1) / stacks)
-            
-            glBegin(GL_LINE_STRIP)
-            for j in range(slices + 1):
-                lng = 2 * np.pi * float(j) / slices
-                x = radius * np.cos(lat1) * np.cos(lng)
-                y = radius * np.sin(lat1)
-                z = radius * np.cos(lat1) * np.sin(lng)
-                glVertex3f(x, y, z)
-            glEnd()
+        self.reactivity *= 0.92
+        self.pulse_strength *= 0.94
