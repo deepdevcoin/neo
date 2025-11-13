@@ -350,45 +350,16 @@ class SpeechEngine(QObject):
                     streaming=False  # Disable streaming to save memory
                 )
 
-                token_count = 0
-                last_token_time = time.time()
-                first_token_time = None
-                timeout_seconds = 20  # Reduced timeout for low memory systems
-                last_activity_time = time.time()
+                # Handle non-streaming response (much lower memory usage)
+                full_response = response_generator  # For non-streaming, this is already the full response
+                token_count = len(full_response.split()) if full_response else 0
+                print(f"[MEMORY-EFFICIENT] Generated {token_count} tokens using non-streaming mode")
 
-                for token in response_generator:
-                    current_time = time.time()
-
-                    # Check for timeout (no activity for 5 seconds - reduced for low memory)
-                    if current_time - last_activity_time > 5:
-                        print(f"[SPEECH_ENGINE WARNING] Generation timeout - no token for 5 seconds (low memory mode)")
-                        break
-
-                    # Check for overall timeout
-                    if current_time - generation_start_time > timeout_seconds:
-                        print(f"[SPEECH_ENGINE WARNING] Generation timeout - {timeout_seconds} seconds exceeded")
-                        break
-
-                    if first_token_time is None:
-                        first_token_time = current_time
-                        print(f"[PERF] Time to first token: {first_token_time - generation_start_time:.2f} seconds.")
-
-                    time_since_last_token = current_time - last_token_time
-                    # Only log slow tokens to reduce noise
-                    if time_since_last_token > 5.0:
-                        print(f"[PERF] Slow token: {time_since_last_token:.2f} seconds.")
-
-                    last_token_time = current_time
-                    last_activity_time = current_time
-
-                    token_count += 1
-                    full_response += token
-                    self.response_chunk_ready.emit(token)
-
-                    # Early stopping if we have a complete response (lowered threshold for low memory)
-                    if token_count > 10 and any(end_punct in full_response for end_punct in ['.', '!', '?']):
-                        print(f"[SPEECH_ENGINE] Early stopping: complete response detected at {token_count} tokens")
-                        break
+                # Simulate streaming for UI compatibility
+                if full_response:
+                    for char in full_response:
+                        self.response_chunk_ready.emit(char)
+                        time.sleep(0.01)  # Very fast simulation
 
                 if token_count == 0:
                     print("[SPEECH_ENGINE WARNING] Streaming finished but received 0 tokens.")
